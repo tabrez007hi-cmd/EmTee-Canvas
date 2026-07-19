@@ -1,0 +1,154 @@
+// import React, { useState, useEffect, useRef } from 'react';
+// import Sidebar from './components/Sidebar';
+// import Navbar from './components/Navbar';
+// import CanvasContainer from './components/CanvasContainer';
+// import InspectorPanel from './components/InspectorPanel';
+// import { generateCanvasHtml } from './utils/templates';
+
+// export default function App() {
+//   const [isCollapsed, setIsCollapsed] = useState(false);
+//   const iframeRef = useRef(null);
+
+//   const [isInspectMode, setIsInspectMode] = useState(false);
+//   const [selectedElementId, setSelectedElementId] = useState(null);
+
+//   const [layoutItems, setLayoutItems] = useState(() => {
+//     const saved = localStorage.getItem('canvas_layout_json');
+//     return saved ? JSON.parse(saved) : [];
+//   });
+
+//   useEffect(() => {
+//     localStorage.setItem('canvas_layout_json', JSON.stringify(layoutItems));
+//   }, [layoutItems]);
+
+//   const currentCompiledCode = generateCanvasHtml(layoutItems);
+
+//   const handleAddItem = (type) => {
+//     const newElement = {
+//       id: `element_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+//       type: type,
+//       text: ['navbar', 'sidebar', 'footer'].includes(type) ? '' : `${type.toUpperCase()} Element`,
+//       styles: {
+//         fontSize: '16px', color: '#1f2937', backgroundColor: '#ffffff',
+//         padding: '12px', border: '1px solid #e5e7eb', transition: 'all 0.2s ease'
+//       },
+//       innerStyles: {}, // ✨ NEW: Stores sub-element styles
+//       innerTexts: {}   // ✨ NEW: Stores sub-element text overrides
+//     };
+//     setLayoutItems(prev => [...prev, newElement]);
+//   };
+
+//   const handleRemoveItem = (id) => {
+//     setLayoutItems(prev => prev.filter(item => item.id !== id));
+//     if (selectedElementId === id || selectedElementId?.startsWith(id)) setSelectedElementId(null);
+//   };
+
+//   useEffect(() => {
+//     const iframe = iframeRef.current;
+//     if (!iframe) return;
+
+//     const handleIframeInteraction = () => {
+//       const doc = iframe.contentDocument || iframe.contentWindow.document;
+//       if (!doc) return;
+
+//       // JS-driven hover ensures ONLY the deepest element gets outlined
+//       const handleMouseOver = (e) => {
+//         if (!isInspectMode) return;
+//         const target = e.target.closest('[data-id]');
+//         if (!target) return;
+        
+//         e.stopPropagation(); // Prevent parent container from catching the hover
+        
+//         // Clear old outlines
+//         doc.querySelectorAll('[data-id]').forEach(el => {
+//           if (el.getAttribute('data-id') !== selectedElementId) el.style.outline = '';
+//         });
+        
+//         target.style.outline = '2px dashed #3b82f6';
+//         target.style.cursor = 'pointer';
+//       };
+
+//       const handleMouseOut = (e) => {
+//         if (!isInspectMode) return;
+//         const target = e.target.closest('[data-id]');
+//         if (!target) return;
+//         if (target.getAttribute('data-id') !== selectedElementId) {
+//           target.style.outline = '';
+//         }
+//       };
+
+//       const handleElementClick = (e) => {
+//         if (!isInspectMode) return;
+//         const targetElement = e.target.closest('[data-id]');
+//         if (!targetElement) return;
+
+//         e.preventDefault();
+//         e.stopPropagation();
+
+//         const targetId = targetElement.getAttribute('data-id');
+//         setSelectedElementId(targetId);
+//         setIsInspectMode(false); 
+//       };
+
+//       doc.addEventListener('mouseover', handleMouseOver, true);
+//       doc.addEventListener('mouseout', handleMouseOut, true);
+//       doc.addEventListener('click', handleElementClick, true);
+
+//       return () => {
+//         doc.removeEventListener('mouseover', handleMouseOver, true);
+//         doc.removeEventListener('mouseout', handleMouseOut, true);
+//         doc.removeEventListener('click', handleElementClick, true);
+//       };
+//     };
+
+//     iframe.addEventListener('load', handleIframeInteraction);
+//     const innerCleanup = handleIframeInteraction();
+
+//     return () => {
+//       iframe.removeEventListener('load', handleIframeInteraction);
+//       if (innerCleanup) innerCleanup();
+//     };
+//   }, [currentCompiledCode, isInspectMode, selectedElementId]); 
+
+//   // Apply changes to either parent components OR nested sub-elements dynamically
+//   const handleApplyStyleChanges = (id, updatedText, updatedStyles) => {
+//     setLayoutItems(prev => prev.map(item => {
+//       // Check if the id contains our specific child separator "::"
+//       if (id && id.includes('::')) {
+//         const [parentId, childKey] = id.split('::');
+//         if (item.id === parentId) {
+//           return {
+//             ...item,
+//             innerTexts: { ...(item.innerTexts || {}), [childKey]: updatedText },
+//             innerStyles: { ...(item.innerStyles || {}), [childKey]: updatedStyles }
+//           };
+//         }
+//       } else if (item.id === id) {
+//         return { ...item, text: updatedText, styles: updatedStyles };
+//       }
+//       return item;
+//     }));
+//   };
+
+//   return (
+//     <div className="min-h-screen bg-gray-50 flex">
+//       <Sidebar 
+//         isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} 
+//         layoutItems={layoutItems} onAddItem={handleAddItem}
+//         onRemoveItem={handleRemoveItem} selectedElementId={selectedElementId}
+//         onSelectElementId={setSelectedElementId}
+//       />
+//       <div className="flex flex-col flex-1 transition-all duration-300" style={{ paddingLeft: isCollapsed ? '4rem' : '16rem' }}>
+//         <Navbar isCollapsed={isCollapsed} />
+//         <main className="p-6 mt-16 max-w-[1600px] w-full mx-auto flex flex-col flex-1 relative">
+//           <CanvasContainer code={currentCompiledCode} iframeRef={iframeRef} />
+//           <InspectorPanel 
+//             isInspectMode={isInspectMode} setIsInspectMode={setIsInspectMode}
+//             selectedElementId={selectedElementId} layoutItems={layoutItems}
+//             onApplyChanges={handleApplyStyleChanges}
+//           />
+//         </main>
+//       </div>
+//     </div>
+//   );
+// }

@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+@import "tailwindcss";
+@import 'bootstrap-icons/font/bootstrap-icons.css';
+/* Import Bootstrap Icons */
+body {
+  @apply bg-gray-50 text-gray-800 antialiased;
+}
