@@ -2,30 +2,75 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, googleProvider, db } from '../firebase';
 import { ref, set, get } from 'firebase/database';
-// ✨ Back to signInWithPopup, but implemented safely
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, updateProfile, onAuthStateChanged } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, updateProfile, onAuthStateChanged } from 'firebase/auth';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  
+  // Start initializing as true if we detect the localStorage flag
+  const [isInitializing, setIsInitializing] = useState(!!localStorage.getItem('awaitingGoogleRedirect'));
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
   const generateAccountNo = () => 'emtee_' + Math.random().toString(36).substr(2, 9).toUpperCase();
 
-  // Listen for existing active sessions (prevents getting stuck if already logged in)
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        navigate('/user/home', { replace: true });
-      } else {
-        setIsInitializing(false);
+    let isMounted = true;
+    let unsubscribe; // 💡 Lifted to effect scope for proper cleanup
+
+    const processAuth = async () => {
+      try {
+        // 1. Process Google Redirect First 
+        // We await this BEFORE setting up the onAuthStateChanged listener
+        if (localStorage.getItem('awaitingGoogleRedirect')) {
+          const result = await getRedirectResult(auth);
+          
+          if (result && result.user) {
+            // Save local profile data
+            const userRef = ref(db, `users/${result.user.uid}/profile`);
+            const snapshot = await get(userRef);
+            
+            if (!snapshot.exists()) {
+              await set(userRef, {
+                username: result.user.displayName || 'Google User',
+                email: result.user.email,
+                accountNumber: generateAccountNo(),
+                photoURL: result.user.photoURL || '',
+                role: 'normal'
+              });
+            }
+          }
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message.replace('Firebase: ', ''));
+        }
+      } finally {
+        // 💡 ALWAYS clear the local storage flag, even if result is null or errors out
+        localStorage.removeItem('awaitingGoogleRedirect');
       }
-    });
-    return () => unsubscribe();
+
+      // 2. Standard Session Check
+      // Registered ONLY after the redirect check finishes so they don't clash
+      unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          if (isMounted) navigate('/user/home', { replace: true });
+        } else {
+          if (isMounted) setIsInitializing(false);
+        }
+      });
+    };
+
+    processAuth();
+    
+    // 💡 Proper cleanup to prevent Strict Mode bugs
+    return () => { 
+      isMounted = false; 
+      if (unsubscribe) unsubscribe();
+    };
   }, [navigate]);
 
   const handleSubmit = async (e) => {
@@ -35,7 +80,6 @@ export default function Auth() {
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, formData.email, formData.password);
-        navigate('/user/home', { replace: true });
       } else {
         if (formData.password !== formData.confirmPassword) throw new Error("Passwords do not match");
         
@@ -49,7 +93,6 @@ export default function Auth() {
           photoURL: '',
           role: 'normal'
         });
-        navigate('/user/home', { replace: true });
       }
     } catch (err) {
       setError(err.message.replace('Firebase: ', ''));
@@ -57,46 +100,17 @@ export default function Auth() {
     }
   };
 
-  // ✨ THE FIX: The Popup must be the absolute FIRST thing that happens. No state changes before this!
-  const handleGoogleSignIn = async () => {
-    try {
-      // 1. OPEN POPUP INSTANTLY (Bypasses the "Popup Blocked" error)
-      const userCred = await signInWithPopup(auth, googleProvider);
-      
-      // 2. NOW we can safely update the UI to show a loading state
-      setIsInitializing(true);
-      
-      // 3. Verify or Create Profile
-      const userRef = ref(db, `users/${userCred.user.uid}/profile`);
-      const snapshot = await get(userRef);
-      
-      if (!snapshot.exists()) {
-        await set(userRef, {
-          username: userCred.user.displayName || 'Google User',
-          email: userCred.user.email,
-          accountNumber: generateAccountNo(),
-          photoURL: userCred.user.photoURL || '',
-          role: 'normal'
-        });
-      }
-      
-      // 4. Send to Dashboard
-      navigate('/user/home', { replace: true });
-
-    } catch (err) {
-      // Ignore if the user just manually closed the popup window
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message.replace('Firebase: ', ''));
-        setIsInitializing(false);
-      }
-    }
+  const handleGoogleSignIn = () => {
+    setError('');
+    localStorage.setItem('awaitingGoogleRedirect', 'true');
+    signInWithRedirect(auth, googleProvider);
   };
 
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
         <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-slate-500 font-bold animate-pulse text-sm">Authenticating securely...</p>
+        <p className="text-slate-500 font-bold animate-pulse text-sm">Securing your account session...</p>
       </div>
     );
   }
@@ -139,13 +153,13 @@ export default function Auth() {
           </button>
         </form>
 
-        <button 
+        {/* <button 
           onClick={handleGoogleSignIn} 
           disabled={loading}
           className="w-full mt-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
         >
           <i className="bi bi-google text-red-500"></i> Continue with Google
-        </button>
+        </button> */}
 
         <p className="text-center text-xs text-gray-500 mt-8">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
