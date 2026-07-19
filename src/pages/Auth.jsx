@@ -2,68 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, googleProvider, db } from '../firebase';
 import { ref, set, get } from 'firebase/database';
-// Strictly using signInWithRedirect and getRedirectResult
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, updateProfile, onAuthStateChanged } from 'firebase/auth';
+// ✨ Back to signInWithPopup, but implemented safely
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, updateProfile, onAuthStateChanged } from 'firebase/auth';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
-  // ✨ NEW: Initializing state to prevent the "stuck" feeling while Firebase processes the redirect
   const [isInitializing, setIsInitializing] = useState(true);
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
-
   const generateAccountNo = () => 'emtee_' + Math.random().toString(36).substr(2, 9).toUpperCase();
 
+  // Listen for existing active sessions (prevents getting stuck if already logged in)
   useEffect(() => {
-    let isMounted = true;
-
-    const processAuth = async () => {
-      try {
-        // 1. Check if we just returned from Google Redirect
-        const result = await getRedirectResult(auth);
-        
-        if (result && result.user) {
-          const userRef = ref(db, `users/${result.user.uid}/profile`);
-          const snapshot = await get(userRef);
-          
-          // Create database profile if this is a first-time Google login
-          if (!snapshot.exists()) {
-            await set(userRef, {
-              username: result.user.displayName || 'Google User',
-              email: result.user.email,
-              accountNumber: generateAccountNo(),
-              photoURL: result.user.photoURL || '',
-              role: 'normal' // Enforce default normal role
-            });
-          }
-          if (isMounted) navigate('/user/home', { replace: true });
-          return; // Stop execution, redirect successful
-        }
-      } catch (err) {
-        if (isMounted) setError(err.message.replace('Firebase: ', ''));
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        navigate('/user/home', { replace: true });
+      } else {
+        setIsInitializing(false);
       }
-
-      // 2. If no redirect result, check if they are already logged in via active session
-      const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user && isMounted) {
-          navigate('/user/home', { replace: true });
-        } else if (isMounted) {
-          // Only show the login form if we are 100% sure NO user is logged in
-          setIsInitializing(false);
-        }
-      });
-
-      return () => unsubscribe();
-    };
-
-    processAuth();
-
-    return () => { isMounted = false; };
+    });
+    return () => unsubscribe();
   }, [navigate]);
 
   const handleSubmit = async (e) => {
@@ -95,14 +57,41 @@ export default function Auth() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    setError('');
-    // Trigger the loading screen before redirecting to Google
-    setIsInitializing(true);
-    signInWithRedirect(auth, googleProvider);
+  // ✨ THE FIX: The Popup must be the absolute FIRST thing that happens. No state changes before this!
+  const handleGoogleSignIn = async () => {
+    try {
+      // 1. OPEN POPUP INSTANTLY (Bypasses the "Popup Blocked" error)
+      const userCred = await signInWithPopup(auth, googleProvider);
+      
+      // 2. NOW we can safely update the UI to show a loading state
+      setIsInitializing(true);
+      
+      // 3. Verify or Create Profile
+      const userRef = ref(db, `users/${userCred.user.uid}/profile`);
+      const snapshot = await get(userRef);
+      
+      if (!snapshot.exists()) {
+        await set(userRef, {
+          username: userCred.user.displayName || 'Google User',
+          email: userCred.user.email,
+          accountNumber: generateAccountNo(),
+          photoURL: userCred.user.photoURL || '',
+          role: 'normal'
+        });
+      }
+      
+      // 4. Send to Dashboard
+      navigate('/user/home', { replace: true });
+
+    } catch (err) {
+      // Ignore if the user just manually closed the popup window
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message.replace('Firebase: ', ''));
+        setIsInitializing(false);
+      }
+    }
   };
 
-  // ✨ NEW: Show a spinner while Firebase processes the Google Redirect in the background
   if (isInitializing) {
     return (
       <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
