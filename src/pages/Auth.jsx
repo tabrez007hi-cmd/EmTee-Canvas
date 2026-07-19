@@ -1,20 +1,70 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, googleProvider, db } from '../firebase';
 import { ref, set, get } from 'firebase/database';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
+// Strictly using signInWithRedirect and getRedirectResult
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithRedirect, getRedirectResult, updateProfile, onAuthStateChanged } from 'firebase/auth';
 
 export default function Auth() {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  
+  // ✨ NEW: Initializing state to prevent the "stuck" feeling while Firebase processes the redirect
+  const [isInitializing, setIsInitializing] = useState(true);
   const navigate = useNavigate();
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
 
-  // Generates unique EmTeeCanvas Account ID
   const generateAccountNo = () => 'emtee_' + Math.random().toString(36).substr(2, 9).toUpperCase();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const processAuth = async () => {
+      try {
+        // 1. Check if we just returned from Google Redirect
+        const result = await getRedirectResult(auth);
+        
+        if (result && result.user) {
+          const userRef = ref(db, `users/${result.user.uid}/profile`);
+          const snapshot = await get(userRef);
+          
+          // Create database profile if this is a first-time Google login
+          if (!snapshot.exists()) {
+            await set(userRef, {
+              username: result.user.displayName || 'Google User',
+              email: result.user.email,
+              accountNumber: generateAccountNo(),
+              photoURL: result.user.photoURL || '',
+              role: 'normal' // Enforce default normal role
+            });
+          }
+          if (isMounted) navigate('/user/home', { replace: true });
+          return; // Stop execution, redirect successful
+        }
+      } catch (err) {
+        if (isMounted) setError(err.message.replace('Firebase: ', ''));
+      }
+
+      // 2. If no redirect result, check if they are already logged in via active session
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user && isMounted) {
+          navigate('/user/home', { replace: true });
+        } else if (isMounted) {
+          // Only show the login form if we are 100% sure NO user is logged in
+          setIsInitializing(false);
+        }
+      });
+
+      return () => unsubscribe();
+    };
+
+    processAuth();
+
+    return () => { isMounted = false; };
+  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,61 +73,44 @@ export default function Auth() {
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, formData.email, formData.password);
-        navigate('/user/home'); // Updated route
+        navigate('/user/home', { replace: true });
       } else {
         if (formData.password !== formData.confirmPassword) throw new Error("Passwords do not match");
         
         const userCred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         await updateProfile(userCred.user, { displayName: formData.username });
 
-        // Save Profile to Realtime Database
         await set(ref(db, `users/${userCred.user.uid}/profile`), {
           username: formData.username,
           email: formData.email,
           accountNumber: generateAccountNo(),
           photoURL: '',
-          role: 'normal' // Enforce default normal role
+          role: 'normal'
         });
-        navigate('/user/home'); // Updated route
+        navigate('/user/home', { replace: true });
       }
     } catch (err) {
       setError(err.message.replace('Firebase: ', ''));
-    } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setError(''); 
-    setLoading(true);
-    
-    try {
-      // Reverted to signInWithPopup for direct execution
-      const userCred = await signInWithPopup(auth, googleProvider);
-      
-      // Check if user exists in Realtime DB, if not, create their profile
-      const userRef = ref(db, `users/${userCred.user.uid}/profile`);
-      const snapshot = await get(userRef);
-      
-      if (!snapshot.exists()) {
-        await set(userRef, {
-          username: userCred.user.displayName || 'Google User',
-          email: userCred.user.email,
-          accountNumber: generateAccountNo(),
-          photoURL: userCred.user.photoURL || '',
-          role: 'normal' // Enforce default normal role
-        });
-      }
-      navigate('/user/home'); // Updated route
-    } catch (err) {
-      // Ignore the error if the user simply closed the popup manually
-      if (err.code !== 'auth/popup-closed-by-user') {
-        setError(err.message.replace('Firebase: ', ''));
-      }
-    } finally {
-      setLoading(false);
-    }
+  const handleGoogleSignIn = () => {
+    setError('');
+    // Trigger the loading screen before redirecting to Google
+    setIsInitializing(true);
+    signInWithRedirect(auth, googleProvider);
   };
+
+  // ✨ NEW: Show a spinner while Firebase processes the Google Redirect in the background
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold animate-pulse text-sm">Authenticating securely...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
@@ -112,7 +145,7 @@ export default function Auth() {
               <input type="password" name="confirmPassword" required value={formData.confirmPassword} onChange={handleChange} className="w-full border rounded-lg px-4 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
             </div>
           )}
-          <button type="submit" disabled={loading} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 mt-2 disabled:opacity-50 cursor-pointer">
+          <button type="submit" disabled={loading} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 mt-2 disabled:opacity-50 cursor-pointer transition-colors">
             {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
           </button>
         </form>
@@ -120,7 +153,7 @@ export default function Auth() {
         <button 
           onClick={handleGoogleSignIn} 
           disabled={loading}
-          className="w-full mt-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+          className="w-full mt-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-colors"
         >
           <i className="bi bi-google text-red-500"></i> Continue with Google
         </button>
