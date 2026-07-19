@@ -23,7 +23,7 @@ export default function Auth() {
     try {
       if (isLogin) {
         await signInWithEmailAndPassword(auth, formData.email, formData.password);
-        navigate('/builder');
+        navigate('/user/home'); // Updated route
       } else {
         if (formData.password !== formData.confirmPassword) throw new Error("Passwords do not match");
         
@@ -35,9 +35,10 @@ export default function Auth() {
           username: formData.username,
           email: formData.email,
           accountNumber: generateAccountNo(),
-          photoURL: ''
+          photoURL: '',
+          role: 'normal' // Enforce default normal role
         });
-        navigate('/builder');
+        navigate('/user/home'); // Updated route
       }
     } catch (err) {
       setError(err.message.replace('Firebase: ', ''));
@@ -47,7 +48,11 @@ export default function Auth() {
   };
 
   const handleGoogleSignIn = async () => {
+    setError(''); 
+    setLoading(true);
+    
     try {
+      // Reverted to signInWithPopup for direct execution
       const userCred = await signInWithPopup(auth, googleProvider);
       
       // Check if user exists in Realtime DB, if not, create their profile
@@ -59,12 +64,18 @@ export default function Auth() {
           username: userCred.user.displayName || 'Google User',
           email: userCred.user.email,
           accountNumber: generateAccountNo(),
-          photoURL: userCred.user.photoURL || ''
+          photoURL: userCred.user.photoURL || '',
+          role: 'normal' // Enforce default normal role
         });
       }
-      navigate('/builder');
+      navigate('/user/home'); // Updated route
     } catch (err) {
-      setError(err.message.replace('Firebase: ', ''));
+      // Ignore the error if the user simply closed the popup manually
+      if (err.code !== 'auth/popup-closed-by-user') {
+        setError(err.message.replace('Firebase: ', ''));
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -101,18 +112,22 @@ export default function Auth() {
               <input type="password" name="confirmPassword" required value={formData.confirmPassword} onChange={handleChange} className="w-full border rounded-lg px-4 py-2.5 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500" />
             </div>
           )}
-          <button type="submit" disabled={loading} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 mt-2 disabled:opacity-50">
+          <button type="submit" disabled={loading} className="w-full py-3 bg-indigo-600 text-white font-bold rounded-lg shadow-sm hover:bg-indigo-700 mt-2 disabled:opacity-50 cursor-pointer">
             {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Sign Up')}
           </button>
         </form>
 
-        <button onClick={handleGoogleSignIn} className="w-full mt-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2">
+        <button 
+          onClick={handleGoogleSignIn} 
+          disabled={loading}
+          className="w-full mt-6 py-3 bg-white border border-gray-200 text-gray-700 font-bold rounded-lg shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+        >
           <i className="bi bi-google text-red-500"></i> Continue with Google
         </button>
 
         <p className="text-center text-xs text-gray-500 mt-8">
           {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="text-indigo-600 font-bold hover:underline">
+          <button onClick={() => { setIsLogin(!isLogin); setError(''); }} className="text-indigo-600 font-bold hover:underline cursor-pointer">
             {isLogin ? 'Sign up' : 'Log in'}
           </button>
         </p>

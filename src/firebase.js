@@ -5,13 +5,16 @@ import { getStorage } from "firebase/storage";
 
 // Replace these with your actual Firebase project configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyB0jLiawN_C2FQyzDqCcGl83NC1qNp8nes",
-    authDomain: "ez-play-01.firebaseapp.com",
-    databaseURL: "https://ez-play-01-default-rtdb.firebaseio.com",
-    projectId: "ez-play-01",
-    storageBucket: "ez-play-01.firebasestorage.app",
-    messagingSenderId: "486678085182",
-    appId: "1:486678085182:web:71a80ef0f9ca483dee5b6f"
+  apiKey: "AIzaSyCvlAcHHIENN7mL9K1Q9nZ0Y5YX8JTuUvk",
+  authDomain: "emtee-canvas.firebaseapp.com",
+  projectId: "emtee-canvas",
+  databaseURL: "https://emtee-canvas-default-rtdb.firebaseio.com/",
+  storageBucket: "emtee-canvas.firebasestorage.app",
+  messagingSenderId: "1051255449793",
+  appId: "1:1051255449793:web:ff621342887322db308c40"
+  
+  
+  
 };
 
 const app = initializeApp(firebaseConfig);
