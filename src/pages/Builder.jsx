@@ -99,27 +99,33 @@ export default function Builder() {
   };
 
   useEffect(() => {
-    const user = auth.currentUser;
-    if (!user) return;
-
     const queryParams = new URLSearchParams(window.location.search);
     const urlOwner = queryParams.get('owner');
     const urlParamId = queryParams.get('ws');
+    const user = auth.currentUser;
 
-    if (urlOwner && urlOwner !== user.uid && urlParamId) {
+    // Block non-logged-in users UNLESS they are viewing a shared link
+    if (!user && !urlOwner) {
+      navigate('/authentication', { replace: true });
+      return;
+    }
+
+    // 🌐 GUEST / SHARED LINK HANDLER
+    if (urlOwner && urlOwner !== user?.uid && urlParamId) {
       const sharedRef = ref(db, `users/${urlOwner}/workspaces/${urlParamId}`);
       get(sharedRef).then(snap => {
         if (snap.exists()) {
           const sharedWs = snap.val();
-          if (!sharedWs.isPublic) {
-            alert('Access Denied 🔒\nThis workspace is private. You do not have permission to view it.');
-            navigate('/builder', { replace: true });
+          if (!sharedWs.isPublic && !sharedWs.isShareable) {
+            alert('Access Denied 🔒\nThis workspace is private.');
+            navigate(user ? '/user/home' : '/authentication', { replace: true });
           } else {
             setSharedViewData({ owner: urlOwner, ...sharedWs });
+            setIsDataLoaded(true); // ✅ Critical: Allow the UI to render for guests
           }
         } else {
-          alert('Error ❌\nShared workspace not found or has been deleted.');
-          navigate('/builder', { replace: true });
+          alert('Error ❌\nShared workspace not found.');
+          navigate(user ? '/user/home' : '/authentication', { replace: true });
         }
       });
     }
@@ -127,7 +133,7 @@ export default function Builder() {
 
   useEffect(() => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) return; // Guests stop here, they don't have workspaces!
 
     const HARDCODED_DEVS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
     const isHardcodedDev = user.email && HARDCODED_DEVS.includes(user.email.toLowerCase().trim());
@@ -135,23 +141,17 @@ export default function Builder() {
     const profileRef = ref(db, `users/${user.uid}/profile`);
     onValue(profileRef, (snapshot) => {
       if (snapshot.exists()) {
-         const data = snapshot.val();
-         setUserProfile(data);
-         setUserRole(isHardcodedDev ? 'developer' : (data.role || 'normal'));
+         setUserProfile(snapshot.val());
+         setUserRole(isHardcodedDev ? 'developer' : (snapshot.val().role || 'normal'));
       }
     });
-    // Check developer whitelists
 
     const workspacesRef = ref(db, `users/${user.uid}/workspaces`);
     onValue(workspacesRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.val();
         const list = Object.values(data);
-        
-        setWorkspaces(prevList => {
-          if (JSON.stringify(prevList) === JSON.stringify(list)) return prevList;
-          return list;
-        });
+        setWorkspaces(list);
 
         setActiveWorkspaceId(prevActiveId => {
           if (prevActiveId && data[prevActiveId]) return prevActiveId;
@@ -162,10 +162,11 @@ export default function Builder() {
         });
         setIsDataLoaded(true);
       } else {
+        // If they have no workspaces, send to dashboard
         navigate('/user/home', { replace: true });
       }
     });
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (!activeWorkspaceId || !userProfile || sharedViewData) return;
@@ -379,22 +380,34 @@ export default function Builder() {
         styles: { backgroundColor: '#ffffff', borderTop: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', color: '#9ca3af', fontSize: '14px', marginTop: 'auto' },
         tabletStyles: {}, mobileStyles: {}, rawHtml: ''
       });
-    } else {
-      const isContainer = type === 'div' || type === 'section';
+    }  else {
+      // ✨ SMART GENERATOR FOR ALL HTML ELEMENTS
+      const isContainer = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer'].includes(type);
+      const isInput = ['input', 'textarea', 'select'].includes(type);
+      const isMedia = ['img', 'video', 'iframe', 'canvas', 'svg'].includes(type);
+      const isImg = type === 'img'; // ✨ FIX: Added the missing isImg definition here!
+      const isList = ['ul', 'ol', 'table', 'tr'].includes(type);
+      const isListItem = ['li', 'td', 'th'].includes(type);
       const isLink = type === 'a';
-      const isImg = type === 'img';
       const isBtn = type === 'button';
+      const isLabel = type === 'label';
 
       newItems.push({
         id: parentId, type: type, customId: '', parentId: null,  
-        text: isImg ? '' : isLink ? 'Click Here' : isBtn ? 'Action Button' : `${type.toUpperCase()} Node`,
-        src: isImg ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : null,
+        text: (isMedia || isInput || isContainer || isList || isListItem) ? '' : isLink ? 'Click Here' : isBtn ? 'Submit' : isLabel ? 'Label Text' : `${type.toUpperCase()} Text`,
+        src: type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : null,
         href: isLink ? '#' : null,
-        styles: isContainer ? { minHeight: '150px', width: '100%', maxWidth: '100%', padding: '20px', border: '1px dashed #cbd5e1', backgroundColor: '#f8fafc', backgroundSize: 'cover', backgroundPosition: 'center', display: 'flex', flexDirection: 'column', gap: '10px', transition: 'all 0.2s ease', flexWrap: 'wrap', boxSizing: 'border-box' } 
-        : isImg ? { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', display: 'block', boxShadow: 'none', objectFit: 'cover' } 
-        : isLink ? { fontSize: '16px', color: '#3b82f6', textDecoration: 'underline', display: 'inline-block', transition: 'all 0.2s ease', maxWidth: '100%', wordWrap: 'break-word' } 
-        : isBtn ? { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block', maxWidth: '100%' }
-        : { fontSize: '16px', color: '#1f2937', padding: '0px', margin: '0px', transition: 'all 0.2s ease', maxWidth: '100%', wordWrap: 'break-word' },
+        
+        // Custom Input Attributes
+        placeholder: isInput ? 'Enter text here...' : null,
+        inputType: type === 'input' ? 'text' : null,
+
+        styles: isContainer ? { minHeight: '100px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' } 
+        : isImg ? { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' } 
+        : isInput ? { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' }
+        : isBtn ? { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' }
+        : isList ? { paddingLeft: '20px', marginBottom: '1rem', width: '100%' }
+        : { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' },
         tabletStyles: {}, mobileStyles: {}, rawHtml: ''
       });
     }
@@ -650,11 +663,18 @@ export default function Builder() {
         const rect = targetNode.getBoundingClientRect();
         const scrollX = iframe.contentWindow.scrollX || doc.documentElement.scrollLeft;
         const scrollY = iframe.contentWindow.scrollY || doc.documentElement.scrollTop;
+        
+        let toolbeltTop = rect.top + scrollY - 32;
+        if (toolbeltTop < scrollY) {
+           toolbeltTop = rect.top + scrollY + 6; 
+        }
 
         const toolbelt = doc.createElement('div');
         toolbelt.id = 'emtee-element-toolbelt';
         Object.assign(toolbelt.style, {
-          position: 'absolute', top: `${rect.top + scrollY - 32}px`, left: `${rect.left + scrollX}px`,
+          position: 'absolute', 
+          top: `${toolbeltTop}px`, 
+          left: `${Math.max(0, rect.left + scrollX)}px`,
           zIndex: '99999', display: 'flex', alignItems: 'center', gap: '5px',
           backgroundColor: '#1e1b4b', padding: '4px 6px', borderRadius: '8px',
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
@@ -748,8 +768,13 @@ export default function Builder() {
             outline.style.height = `${currentH}px`;
           }
 
-          toolbelt.style.left = `${rect.left + scrollX}px`;
-          toolbelt.style.top = `${rect.top + scrollY - 32}px`;
+          // ✨ Keep toolbelt attached properly during resizing!
+          let newToolbeltTop = rect.top + scrollY - 32;
+          if (newToolbeltTop < scrollY) newToolbeltTop = rect.top + scrollY + 6;
+          
+          toolbelt.style.left = `${Math.max(0, rect.left + scrollX)}px`;
+          toolbelt.style.top = `${newToolbeltTop}px`;
+          
           syncAnchors(currentW, currentH);
         };
 
@@ -827,7 +852,13 @@ export default function Builder() {
 
     const handleImportShared = () => {
       const user = auth.currentUser;
+      if (!user) {
+        alert("Please sign in or create a free account to clone this amazing project to your own dashboard! 🚀");
+        navigate('/authentication');
+        return;
+      }
       const sharedLayoutsStr = typeof sharedViewData.layouts === 'string' ? sharedViewData.layouts : JSON.stringify(sharedViewData.layouts || []);
+      
 
       if (userRole === 'normal' && workspaces.length >= 3) {
          alert('Free Plan Limit: You can only have 3 active workspaces. Please delete an existing workspace from your Dashboard before importing this one.');

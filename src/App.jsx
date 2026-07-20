@@ -44,7 +44,7 @@ export default function App() {
         
         <Route path="/deploy-template" element={user ? <DeployTemplate /> : <Navigate to="/authentication" />} />
         
-        <Route path="/builder/*" element={user ? <Builder /> : <Navigate to="/authentication" />} />
+        <Route path="/builder" element={<Builder />} />
       </Routes>
     </Router>
   );

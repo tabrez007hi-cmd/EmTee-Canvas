@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
-import { ref, onValue, set } from 'firebase/database';
 import { signOut } from 'firebase/auth';
+import { ref, onValue, set, update, get } from 'firebase/database';
 
 import AccountModal from '../components/AccountModal';
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal'; 
@@ -158,27 +158,55 @@ export default function UserHome() {
     if (window.confirm('Are you sure you want to permanently delete this template?')) await set(ref(db, `templates/${templateId}`), null);
   };
 
-  const handleSaveWorkspaceSettings = (id, updates) => {
+  const handleSaveWorkspaceSettings = async (id, updates, swapId = null) => {
     const user = auth.currentUser;
     const match = workspaces.find(w => w.id === id);
-    if (match) {
-      const newId = updates.name !== match.name ? generateProjectSlug(updates.name) : id;
-      const updatedWS = { 
-        ...match, 
-        id: newId, 
-        name: updates.name, 
-        isPublic: updates.isPublic, 
-        allowCodeView: updates.allowCodeView, 
-        allowDomView: updates.allowDomView, 
-        updatedAt: Date.now() 
-      };
-      
-      set(ref(db, `users/${user.uid}/workspaces/${newId}`), updatedWS).then(() => {
-        if (id !== newId) {
-          set(ref(db, `users/${user.uid}/workspaces/${id}`), null);
-        }
-        setWorkspaceSettingsTarget(null);
-      });
+    if (!match) return;
+
+    // Generate new ID only if name changed
+    const newId = updates.name !== match.name ? generateProjectSlug(updates.name) : id;
+    
+    // Prepare the updated workspace object
+    const updatedWS = { 
+      ...match, 
+      id: newId, 
+      name: updates.name, 
+      isPublic: updates.isPublic, 
+      isShareable: updates.isShareable, // ✨ New share state
+      allowCodeView: updates.allowCodeView, 
+      allowDomView: updates.allowDomView, 
+      updatedAt: Date.now() 
+    };
+
+    // ⚡ Execute Atomic Multi-path Update
+    const dbUpdates = {};
+    
+    // 1. Save the new/updated workspace
+    dbUpdates[`users/${user.uid}/workspaces/${newId}`] = updatedWS;
+    
+    // 2. Delete the old one if the ID changed
+    if (id !== newId) {
+      dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+    }
+
+    // 3. Swap Target Logic 🔄 (Make the swapped project Public)
+    if (swapId) {
+      const swapMatch = workspaces.find(w => w.id === swapId);
+      if (swapMatch) {
+        dbUpdates[`users/${user.uid}/workspaces/${swapId}`] = {
+          ...swapMatch,
+          isPublic: true, // Forces it to global public
+          updatedAt: Date.now()
+        };
+      }
+    }
+
+    try {
+      await update(ref(db), dbUpdates);
+      setWorkspaceSettingsTarget(null);
+    } catch (err) {
+      console.error("Failed to update workspace settings", err);
+      alert("Error saving settings.");
     }
   };
 
