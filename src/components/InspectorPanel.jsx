@@ -47,7 +47,6 @@ export default function InspectorPanel({
   
   const isRawVirtualNode = activeItemData?.isRawChild || false;
 
-  // ✨ UPGRADE: Smart Category Recognition for New Elements
   const elemType = activeItemData?.type || '';
   const isContainer = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer', 'ul', 'ol', 'table', 'tbody', 'thead', 'tr'].includes(elemType);
   const isMedia = ['img', 'video', 'iframe', 'canvas', 'svg'].includes(elemType);
@@ -117,7 +116,7 @@ export default function InspectorPanel({
 
   if (isMinimized) {
     return (
-      <button onClick={() => setIsMinimized(false)} className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-white border border-gray-200 text-indigo-600 rounded-full shadow-xl flex items-center justify-center hover:scale-105 transition-all cursor-pointer">
+      <button onClick={() => setIsMinimized(false)} className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-slate-900 border border-slate-700 text-indigo-400 rounded-full shadow-[0_0_15px_rgba(79,70,229,0.3)] flex items-center justify-center hover:scale-105 hover:bg-slate-800 transition-all cursor-pointer">
         <i className="bi bi-sliders text-base"></i>
       </button>
     );
@@ -161,68 +160,68 @@ export default function InspectorPanel({
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-[340px] max-h-[calc(100vh-8rem)] bg-white border border-gray-200 rounded-xl shadow-2xl flex flex-col overflow-hidden animate-fade-in">
+    <div className="fixed bottom-6 right-6 z-50 w-[340px] max-h-[calc(100vh-8rem)] bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-fade-in text-slate-200">
       
-      <div className="bg-gray-50 px-4 py-2.5 border-b border-gray-200 flex items-center justify-between shrink-0">
+      <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <button onClick={() => setIsInspectMode(!isInspectMode)} className={`w-7 h-7 rounded-md flex items-center justify-center transition-all border cursor-pointer ${isInspectMode ? 'bg-blue-600 text-white border-blue-600 animate-pulse' : 'bg-white border-gray-200 text-gray-500'}`} title="Select Element Tool">
+          <button onClick={() => setIsInspectMode(!isInspectMode)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all border cursor-pointer shadow-sm ${isInspectMode ? 'bg-indigo-600 text-white border-indigo-500 animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}`} title="Select Element Tool">
             <i className="bi bi-cursor-fill text-xs"></i>
           </button>
-          <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wide truncate max-w-[160px]">
+          <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wide truncate max-w-[160px]">
             {displayTitle}
           </span>
         </div>
-        <button onClick={() => setIsMinimized(true)} className="w-6 h-6 text-gray-400 hover:bg-gray-200 rounded flex items-center justify-center cursor-pointer"><i className="bi bi-dash-lg"></i></button>
+        <button onClick={() => setIsMinimized(true)} className="w-8 h-8 text-slate-500 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg flex items-center justify-center cursor-pointer transition-colors"><i className="bi bi-dash-lg"></i></button>
       </div>
 
-      <div className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar bg-white">
+      <div className="flex-1 p-4 space-y-6 overflow-y-auto custom-scrollbar bg-slate-900">
         {!activeItemData ? (
-          <div className="text-center py-12 text-xs text-gray-400 space-y-2">
-            <i className="bi bi-diagram-3 text-3xl text-indigo-200 block mb-3"></i>
-            <p className="font-semibold text-gray-500">Builder Node Inspector</p>
+          <div className="text-center py-12 text-xs text-slate-500 space-y-2">
+            <i className="bi bi-diagram-3 text-4xl text-indigo-500/30 block mb-4"></i>
+            <p className="font-bold text-slate-400">Builder Node Inspector</p>
             <p className="text-[10px] px-2 leading-relaxed">Select a layer from the DOM Tree or click an element dynamically.</p>
           </div>
         ) : (
           <>
             {pendingRawHtml && !isRawVirtualNode && editorMode !== 'html' && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-2.5 space-y-2 mb-4 animate-fade-in">
-                <div className="flex items-center gap-1.5 text-amber-700 text-[10px] font-bold uppercase tracking-wider">
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-2 mb-4 animate-fade-in">
+                <div className="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold uppercase tracking-wider">
                   <i className="bi bi-exclamation-triangle-fill"></i> Full HTML Mode Active
                 </div>
-                <p className="text-[10px] text-amber-600 leading-tight">
+                <p className="text-[10px] text-amber-500/80 leading-tight">
                   Visual settings are currently being ignored because custom HTML is overriding this element block.
                 </p>
-                <button onClick={() => setPendingRawHtml('')} className="bg-amber-100 hover:bg-amber-200 text-amber-800 text-[10px] font-bold py-1 px-2 rounded transition-colors w-full cursor-pointer">
+                <button onClick={() => setPendingRawHtml('')} className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1.5 px-2 rounded-lg transition-colors w-full cursor-pointer">
                   Clear Custom HTML & Reset
                 </button>
               </div>
             )}
 
             {isRawVirtualNode && editorMode === 'visual' && (
-              <div className="bg-blue-50 border border-blue-100 rounded-lg p-2.5 space-y-1.5 mb-4 animate-fade-in">
-                <div className="flex items-center gap-1.5 text-blue-700 text-[10px] font-bold uppercase tracking-wider">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 space-y-1.5 mb-4 animate-fade-in">
+                <div className="flex items-center gap-1.5 text-blue-400 text-[10px] font-bold uppercase tracking-wider">
                   <i className="bi bi-info-circle-fill"></i> Deep Template Node
                 </div>
-                <p className="text-[10px] text-blue-600 leading-tight">
+                <p className="text-[10px] text-blue-300 leading-tight">
                   You are visually styling an element inside a template block.
                 </p>
               </div>
             )}
 
-            <div className="space-y-3 bg-indigo-50/40 p-3 rounded-lg border border-indigo-50">
-              <h4 className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 flex items-center gap-1.5"><i className="bi bi-link-45deg"></i> Structure & Relational Tree</h4>
+            <div className="space-y-3 bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/50">
+              <h4 className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5"><i className="bi bi-link-45deg text-sm"></i> Structure & Relational Tree</h4>
               <div>
-                <label className="text-[11px] text-gray-600 mb-0.5 block font-medium flex justify-between">
+                <label className="text-[11px] text-slate-400 mb-1 block font-bold flex justify-between">
                   Unique Custom ID
                   {isRawVirtualNode && <span className="text-[9px] text-amber-500 font-bold"><i className="bi bi-lock-fill"></i> Locked</span>}
                 </label>
-                <input type="text" value={pendingCustomId} disabled={isRawVirtualNode} onChange={(e) => setPendingCustomId(e.target.value)} className={`w-full border border-gray-200 rounded-md px-2 py-1.5 text-xs text-gray-700 font-mono bg-white focus:outline-none focus:border-indigo-500 ${isRawVirtualNode ? 'opacity-50 cursor-not-allowed bg-gray-100' : ''}`} placeholder="e.g. hero-container" />
+                <input type="text" value={pendingCustomId} disabled={isRawVirtualNode} onChange={(e) => setPendingCustomId(e.target.value)} className={`w-full border border-slate-700 rounded-lg px-3 py-2 text-xs text-white font-mono bg-slate-950 focus:outline-none focus:border-indigo-500 transition-colors ${isRawVirtualNode ? 'opacity-50 cursor-not-allowed bg-slate-900' : ''}`} placeholder="e.g. hero-container" />
               </div>
               {!isRawVirtualNode && (
                 <>
                   <div>
-                    <label className="text-[11px] text-gray-600 mb-0.5 block font-medium">Assign Parent Container</label>
-                    <select value={pendingParentId || ''} onChange={(e) => setPendingParentId(e.target.value || null)} className="w-full border border-gray-200 rounded-md px-2 py-1.5 text-xs text-gray-700 focus:outline-none focus:border-indigo-500 bg-white">
+                    <label className="text-[11px] text-slate-400 mb-1 block font-bold">Assign Parent Container</label>
+                    <select value={pendingParentId || ''} onChange={(e) => setPendingParentId(e.target.value || null)} className="w-full border border-slate-700 rounded-lg px-2 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 bg-slate-950 transition-colors cursor-pointer">
                       <option value="">[Root Document Base]</option>
                       {availableContainers.map(container => (
                         <option key={container.id} value={container.id}>{container.customId ? `<${container.type}> #${container.customId}` : `<${container.type}> (${container.id.substring(0, 10)})`}</option>
@@ -230,11 +229,11 @@ export default function InspectorPanel({
                     </select>
                   </div>
                   {siblings.length > 1 && (
-                    <div className="pt-3 mt-2 border-t border-indigo-100">
-                      <label className="text-[11px] text-gray-600 mb-1 block font-medium">Element Position (Order)</label>
+                    <div className="pt-3 mt-3 border-t border-slate-700">
+                      <label className="text-[11px] text-slate-400 mb-2 block font-bold">Element Position (Order)</label>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => onMoveItem(selectedElementId, 'up')} className="flex-1 py-1.5 bg-white border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 shadow-sm active:scale-95 transition-all cursor-pointer"><i className="bi bi-arrow-up"></i> Move Up</button>
-                        <button onClick={() => onMoveItem(selectedElementId, 'down')} className="flex-1 py-1.5 bg-white border border-gray-200 rounded-md text-xs text-gray-600 hover:bg-gray-50 shadow-sm active:scale-95 transition-all cursor-pointer"><i className="bi bi-arrow-down"></i> Move Down</button>
+                        <button onClick={() => onMoveItem(selectedElementId, 'up')} className="flex-1 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm active:scale-95 transition-all cursor-pointer"><i className="bi bi-arrow-up"></i> Move Up</button>
+                        <button onClick={() => onMoveItem(selectedElementId, 'down')} className="flex-1 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm active:scale-95 transition-all cursor-pointer"><i className="bi bi-arrow-down"></i> Move Down</button>
                       </div>
                     </div>
                   )}
@@ -243,57 +242,57 @@ export default function InspectorPanel({
             </div>
 
             {/* 3-Way Mode Switcher */}
-            <div className="flex bg-indigo-50 p-1 rounded-lg">
-              <button onClick={() => handleModeSwitch('visual')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-md flex items-center justify-center gap-1.5 transition-all ${editorMode === 'visual' ? 'bg-white shadow-sm text-indigo-700' : 'text-indigo-400 hover:text-indigo-600 cursor-pointer'}`}>
+            <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+              <button onClick={() => handleModeSwitch('visual')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${editorMode === 'visual' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white cursor-pointer'}`}>
                 <i className="bi bi-palette"></i> Visual
               </button>
-              <button onClick={() => handleModeSwitch('code')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-md flex items-center justify-center gap-1.5 transition-all cursor-pointer ${editorMode === 'code' ? 'bg-white shadow-sm text-indigo-700' : 'text-indigo-400 hover:text-indigo-600'}`}>
+              <button onClick={() => handleModeSwitch('code')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${editorMode === 'code' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white'}`}>
                 <i className="bi bi-filetype-css"></i> CSS
               </button>
-              <button disabled={isRawVirtualNode} onClick={() => handleModeSwitch('html')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-md flex items-center justify-center gap-1.5 transition-all ${isRawVirtualNode ? 'opacity-40 cursor-not-allowed text-indigo-300' : (editorMode === 'html' ? 'bg-white shadow-sm text-indigo-700' : 'text-indigo-400 hover:text-indigo-600 cursor-pointer')}`}>
+              <button disabled={isRawVirtualNode} onClick={() => handleModeSwitch('html')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all ${isRawVirtualNode ? 'opacity-40 cursor-not-allowed text-slate-600' : (editorMode === 'html' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white cursor-pointer')}`}>
                 <i className="bi bi-code-slash"></i> HTML
               </button>
             </div>
 
             {/* Editing Views */}
             {editorMode === 'html' ? (
-              <div className="space-y-2 animate-fade-in">
-                <p className="text-[10px] text-gray-500 bg-gray-50 p-2 rounded border border-gray-100 leading-relaxed">
-                  <i className="bi bi-info-circle-fill text-indigo-400 mr-1"></i> Write raw HTML. This completely overrides the visual editor and child elements for this specific node.
+              <div className="space-y-3 animate-fade-in">
+                <p className="text-[10px] text-slate-400 bg-slate-950 p-3 rounded-xl border border-slate-800 leading-relaxed">
+                  <i className="bi bi-info-circle-fill text-indigo-500 mr-1"></i> Write raw HTML. This completely overrides the visual editor and child elements for this specific node.
                 </p>
                 <textarea 
                   value={pendingRawHtml} onChange={(e) => setPendingRawHtml(e.target.value)}
-                  className="w-full h-80 bg-slate-900 text-blue-400 font-mono text-[11px] p-3 rounded-lg border-2 border-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed custom-scrollbar shadow-inner" spellCheck="false"
+                  className="w-full h-80 bg-slate-950 text-emerald-400 font-mono text-[11px] p-4 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed custom-scrollbar shadow-inner transition-colors" spellCheck="false"
                 />
               </div>
             ) : editorMode === 'code' ? (
-              <div className="space-y-2 animate-fade-in">
-                <div className="flex bg-gray-100 p-1 rounded-lg mb-2">
-                  <button onClick={() => setBreakpoint('desktop')} className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${breakpoint==='desktop'?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>Base</button>
-                  <button onClick={() => setBreakpoint('tablet')} className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${breakpoint==='tablet'?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>Tablet</button>
-                  <button onClick={() => setBreakpoint('mobile')} className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${breakpoint==='mobile'?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>Mobile</button>
+              <div className="space-y-3 animate-fade-in">
+                <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 mb-2">
+                  <button onClick={() => setBreakpoint('desktop')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${breakpoint==='desktop'?'bg-slate-800 shadow text-indigo-400':'text-slate-500 hover:text-white'}`}>Base</button>
+                  <button onClick={() => setBreakpoint('tablet')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${breakpoint==='tablet'?'bg-slate-800 shadow text-indigo-400':'text-slate-500 hover:text-white'}`}>Tablet</button>
+                  <button onClick={() => setBreakpoint('mobile')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${breakpoint==='mobile'?'bg-slate-800 shadow text-indigo-400':'text-slate-500 hover:text-white'}`}>Mobile</button>
                 </div>
                 <textarea 
                   value={rawCss} onChange={(e) => setRawCss(e.target.value)}
-                  className="w-full h-80 bg-slate-900 text-green-400 font-mono text-[11px] p-3 rounded-lg border-2 border-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed custom-scrollbar shadow-inner" spellCheck="false"
+                  className="w-full h-80 bg-slate-950 text-pink-400 font-mono text-[11px] p-4 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 leading-relaxed custom-scrollbar shadow-inner transition-colors" spellCheck="false"
                 />
               </div>
             ) : (
               // 🎨 Visual Editor Layout
               <div className="space-y-6 animate-fade-in opacity-100">
-                <div className="flex bg-gray-100 p-1 rounded-lg mb-2">
-                  <button onClick={() => setBreakpoint('desktop')} className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${breakpoint==='desktop'?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>Base</button>
-                  <button onClick={() => setBreakpoint('tablet')} className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${breakpoint==='tablet'?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>Tablet</button>
-                  <button onClick={() => setBreakpoint('mobile')} className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all cursor-pointer ${breakpoint==='mobile'?'bg-white shadow text-indigo-600':'text-gray-500 hover:text-gray-700'}`}>Mobile</button>
+                <div className="flex bg-slate-950 p-1.5 rounded-xl border border-slate-800 mb-2">
+                  <button onClick={() => setBreakpoint('desktop')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${breakpoint==='desktop'?'bg-slate-800 shadow text-indigo-400 border border-slate-700':'text-slate-500 hover:text-white'}`}>Base</button>
+                  <button onClick={() => setBreakpoint('tablet')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${breakpoint==='tablet'?'bg-slate-800 shadow text-indigo-400 border border-slate-700':'text-slate-500 hover:text-white'}`}>Tablet</button>
+                  <button onClick={() => setBreakpoint('mobile')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${breakpoint==='mobile'?'bg-slate-800 shadow text-indigo-400 border border-slate-700':'text-slate-500 hover:text-white'}`}>Mobile</button>
                 </div>
 
                 <div className="space-y-6">
                   {/* Content Attributes */}
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Content Attributes</h4>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Content Attributes</h4>
                     {!isMedia && !isContainer && (
                       <div>
-                        <label className="text-[11px] text-gray-500 mb-0.5 block flex justify-between">
+                        <label className="text-[11px] text-slate-400 mb-1 block font-bold flex justify-between">
                           Inner Display Label / Text
                           {isRawVirtualNode && <span className="text-[9px] text-amber-500 font-bold"><i className="bi bi-lock-fill"></i> Locked</span>}
                         </label>
@@ -301,56 +300,56 @@ export default function InspectorPanel({
                           value={pendingText} 
                           onChange={(e) => setPendingText(e.target.value)} 
                           disabled={isRawVirtualNode}
-                          className={`w-full border border-gray-200 rounded-md px-2 py-2 text-xs text-gray-700 focus:outline-none min-h-[40px] ${isRawVirtualNode ? 'bg-gray-100 opacity-50 cursor-not-allowed' : ''}`} 
+                          className={`w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 min-h-[40px] custom-scrollbar ${isRawVirtualNode ? 'bg-slate-900 opacity-50 cursor-not-allowed' : ''}`} 
                         />
                       </div>
                     )}
                     {isMedia && (
                       <div>
-                        <label className="text-[11px] text-gray-500 mb-0.5 block">Media / Embed URL (src)</label>
-                        <input type="text" value={pendingSrc} onChange={(e) => setPendingSrc(e.target.value)} disabled={isRawVirtualNode} className={`w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 focus:outline-none ${isRawVirtualNode ? 'bg-gray-100 opacity-50' : ''}`} placeholder="https://..." />
+                        <label className="text-[11px] text-slate-400 mb-1 block font-bold">Media / Embed URL (src)</label>
+                        <input type="text" value={pendingSrc} onChange={(e) => setPendingSrc(e.target.value)} disabled={isRawVirtualNode} className={`w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 ${isRawVirtualNode ? 'bg-slate-900 opacity-50' : ''}`} placeholder="https://..." />
                       </div>
                     )}
                     {isLink && (
                       <div>
-                        <label className="text-[11px] text-gray-500 mb-0.5 block">Link Destination (href)</label>
-                        <input type="text" value={pendingHref} onChange={(e) => setPendingHref(e.target.value)} disabled={isRawVirtualNode} className={`w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 focus:outline-none ${isRawVirtualNode ? 'bg-gray-100 opacity-50' : ''}`} placeholder="https://..." />
+                        <label className="text-[11px] text-slate-400 mb-1 block font-bold">Link Destination (href)</label>
+                        <input type="text" value={pendingHref} onChange={(e) => setPendingHref(e.target.value)} disabled={isRawVirtualNode} className={`w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-indigo-500 ${isRawVirtualNode ? 'bg-slate-900 opacity-50' : ''}`} placeholder="https://..." />
                       </div>
                     )}
                   </div>
 
-                  <hr className="border-gray-100" />
+                  <hr className="border-slate-800" />
 
                   {/* Layout Box Model */}
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Size & Space</h4>
-                    <div className="grid grid-cols-2 gap-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Size & Space</h4>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Width</label>
-                        <input type="text" value={getStyleVal('width')} onChange={(e) => handleStyleFieldChange('width', e.target.value)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 font-mono" placeholder="auto, 100%" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Width</label>
+                        <input type="text" value={getStyleVal('width')} onChange={(e) => handleStyleFieldChange('width', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-emerald-400 rounded-lg px-3 py-2 text-xs font-mono focus:border-indigo-500 outline-none" placeholder="auto, 100%" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Height</label>
-                        <input type="text" value={getStyleVal('height')} onChange={(e) => handleStyleFieldChange('height', e.target.value)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 font-mono" placeholder="auto, 100px" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Height</label>
+                        <input type="text" value={getStyleVal('height')} onChange={(e) => handleStyleFieldChange('height', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-emerald-400 rounded-lg px-3 py-2 text-xs font-mono focus:border-indigo-500 outline-none" placeholder="auto, 100px" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Padding (Inner)</label>
-                        <input type="text" value={getStyleVal('padding')} onChange={(e) => handleStyleFieldChange('padding', e.target.value)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 font-mono" placeholder="10px 20px" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Padding (Inner)</label>
+                        <input type="text" value={getStyleVal('padding')} onChange={(e) => handleStyleFieldChange('padding', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-emerald-400 rounded-lg px-3 py-2 text-xs font-mono focus:border-indigo-500 outline-none" placeholder="10px 20px" />
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Margin (Outer)</label>
-                        <input type="text" value={getStyleVal('margin')} onChange={(e) => handleStyleFieldChange('margin', e.target.value)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 font-mono" placeholder="0 auto" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Margin (Outer)</label>
+                        <input type="text" value={getStyleVal('margin')} onChange={(e) => handleStyleFieldChange('margin', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-emerald-400 rounded-lg px-3 py-2 text-xs font-mono focus:border-indigo-500 outline-none" placeholder="0 auto" />
                       </div>
                     </div>
                   </div>
 
-                  <hr className="border-gray-100" />
+                  <hr className="border-slate-800" />
 
                   {/* Display Engine */}
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Display & Align</h4>
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Display & Align</h4>
                     <div>
-                      <select value={getStyleVal('display')} onChange={(e) => handleStyleFieldChange('display', e.target.value)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs text-gray-700 font-bold bg-gray-50">
+                      <select value={getStyleVal('display')} onChange={(e) => handleStyleFieldChange('display', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-indigo-300 rounded-lg px-3 py-2 text-xs font-bold focus:border-indigo-500 outline-none cursor-pointer">
                         <option value="">Inherit Display</option>
                         <option value="block">Block</option>
                         <option value="inline-block">Inline Block</option>
@@ -360,31 +359,30 @@ export default function InspectorPanel({
                       </select>
                     </div>
 
-                    {/* ✨ UPGRADE: Added Gap CSS Property for Grid/Flex */}
                     {(getStyleVal('display') === 'flex' || getStyleVal('display') === 'grid' || (!getStyleVal('display') && pendingStyles.display === 'flex')) && (
-                      <div className="bg-gray-50 p-2 rounded-lg border border-gray-100 space-y-2">
-                        <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-0.5 block">Direction</label>
-                            <select value={getStyleVal('flexDirection')} onChange={(e) => handleStyleFieldChange('flexDirection', e.target.value)} className="w-full border border-gray-200 rounded p-1 text-xs">
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Direction</label>
+                            <select value={getStyleVal('flexDirection')} onChange={(e) => handleStyleFieldChange('flexDirection', e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white rounded px-2 py-1.5 text-xs outline-none cursor-pointer">
                               <option value="">Inherit</option><option value="row">Row →</option><option value="column">Column ↓</option>
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] text-indigo-500 mb-0.5 block font-bold">Gap (Spacing)</label>
-                            <input type="text" value={getStyleVal('gap')} onChange={(e) => handleStyleFieldChange('gap', e.target.value)} className="w-full border border-indigo-200 rounded p-1 text-xs font-mono" placeholder="16px" />
+                            <label className="text-[10px] text-indigo-400 mb-1 block font-bold">Gap (Spacing)</label>
+                            <input type="text" value={getStyleVal('gap')} onChange={(e) => handleStyleFieldChange('gap', e.target.value)} className="w-full bg-slate-900 border border-indigo-500/50 text-indigo-300 rounded px-2 py-1.5 text-xs font-mono outline-none focus:border-indigo-400" placeholder="16px" />
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-0.5 block">Justify (X)</label>
-                            <select value={getStyleVal('justifyContent')} onChange={(e) => handleStyleFieldChange('justifyContent', e.target.value)} className="w-full border border-gray-200 rounded p-1 text-xs">
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Justify (X)</label>
+                            <select value={getStyleVal('justifyContent')} onChange={(e) => handleStyleFieldChange('justifyContent', e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white rounded px-2 py-1.5 text-xs outline-none cursor-pointer">
                               <option value="">Inherit</option><option value="flex-start">Start</option><option value="center">Center</option><option value="space-between">Space Between</option>
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] text-gray-500 mb-0.5 block">Align (Y)</label>
-                            <select value={getStyleVal('alignItems')} onChange={(e) => handleStyleFieldChange('alignItems', e.target.value)} className="w-full border border-gray-200 rounded p-1 text-xs">
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Align (Y)</label>
+                            <select value={getStyleVal('alignItems')} onChange={(e) => handleStyleFieldChange('alignItems', e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-white rounded px-2 py-1.5 text-xs outline-none cursor-pointer">
                               <option value="">Inherit</option><option value="flex-start">Start</option><option value="center">Center</option><option value="stretch">Stretch</option>
                             </select>
                           </div>
@@ -393,66 +391,69 @@ export default function InspectorPanel({
                     )}
                   </div>
 
-                  <hr className="border-gray-100" />
+                  <hr className="border-slate-800" />
 
                   {/* Position Offsets */}
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Positioning</h4>
-                    <div className="grid grid-cols-2 gap-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Positioning</h4>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Flow Strategy</label>
-                        <select value={getStyleVal('position')} onChange={(e) => handleStyleFieldChange('position', e.target.value)} className="w-full border border-gray-200 rounded p-1 text-xs">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Flow Strategy</label>
+                        <select value={getStyleVal('position')} onChange={(e) => handleStyleFieldChange('position', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-3 py-2 text-xs outline-none focus:border-indigo-500 cursor-pointer">
                           <option value="">Inherit</option><option value="static">Static</option><option value="relative">Relative</option><option value="absolute">Absolute</option><option value="fixed">Fixed</option><option value="sticky">Sticky</option>
                         </select>
                       </div>
                       <div>
-                        <label className="text-[10px] text-indigo-500 mb-0.5 block font-bold">Z-Index</label>
-                        <input type="number" value={getStyleVal('zIndex')} onChange={(e) => handleStyleFieldChange('zIndex', e.target.value)} className="w-full border border-indigo-200 rounded p-1 text-xs font-mono" placeholder="auto" />
+                        <label className="text-[10px] text-indigo-400 mb-1 block font-bold">Z-Index</label>
+                        <input type="number" value={getStyleVal('zIndex')} onChange={(e) => handleStyleFieldChange('zIndex', e.target.value)} className="w-full bg-slate-950 border border-indigo-500/50 text-indigo-300 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-400" placeholder="auto" />
                       </div>
                     </div>
                   </div>
 
-                  <hr className="border-gray-100" />
+                  <hr className="border-slate-800" />
 
                   {/* Typography */}
                   {isTextElement && (
                     <div className="space-y-3">
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Typography</h4>
-                      <div className="grid grid-cols-2 gap-2">
+                      <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Typography</h4>
+                      <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-[10px] text-gray-500 mb-0.5 block">Font Size</label>
-                          <input type="text" value={getStyleVal('fontSize')} onChange={(e) => handleStyleFieldChange('fontSize', e.target.value)} className="w-full border border-gray-200 rounded p-1.5 text-xs font-mono" placeholder="16px" />
+                          <label className="text-[10px] text-slate-400 mb-1 block font-bold">Font Size</label>
+                          <input type="text" value={getStyleVal('fontSize')} onChange={(e) => handleStyleFieldChange('fontSize', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="16px" />
                         </div>
                         <div>
-                          <label className="text-[10px] text-gray-500 mb-0.5 block">Text Color</label>
-                          <input type="color" value={getStyleVal('color')} onChange={(e) => handleStyleFieldChange('color', e.target.value)} className="w-full h-8 border border-gray-200 rounded bg-white p-0.5 cursor-pointer" />
+                          <label className="text-[10px] text-slate-400 mb-1 block font-bold">Text Color</label>
+                          <div className="flex items-center gap-2">
+                             <input type="color" value={getStyleVal('color') || '#ffffff'} onChange={(e) => handleStyleFieldChange('color', e.target.value)} className="w-8 h-8 rounded bg-slate-950 border border-slate-700 p-0.5 cursor-pointer" />
+                             <input type="text" value={getStyleVal('color')} onChange={(e) => handleStyleFieldChange('color', e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 text-pink-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="inherit" />
+                          </div>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  {isTextElement && <hr className="border-gray-100" />}
+                  {isTextElement && <hr className="border-slate-800" />}
 
                   {/* Visuals & FX */}
                   <div className="space-y-3">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Visual Effects</h4>
-                    <div className="grid grid-cols-2 gap-2">
+                    <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Visual Effects</h4>
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Background Color</label>
-                        <div className="flex items-center gap-1">
-                          <input type="color" value={getStyleVal('backgroundColor')} onChange={(e) => handleStyleFieldChange('backgroundColor', e.target.value)} className="w-6 h-6 border rounded cursor-pointer shrink-0" />
-                          <input type="text" value={getStyleVal('backgroundColor')} onChange={(e) => handleStyleFieldChange('backgroundColor', e.target.value)} className="flex-1 border rounded p-1 text-[10px] font-mono" placeholder="transparent" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Background Color</label>
+                        <div className="flex items-center gap-2">
+                          <input type="color" value={getStyleVal('backgroundColor') || '#000000'} onChange={(e) => handleStyleFieldChange('backgroundColor', e.target.value)} className="w-8 h-8 rounded bg-slate-950 border border-slate-700 p-0.5 cursor-pointer shrink-0" />
+                          <input type="text" value={getStyleVal('backgroundColor')} onChange={(e) => handleStyleFieldChange('backgroundColor', e.target.value)} className="flex-1 bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-2 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="transparent" />
                         </div>
                       </div>
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Border Details</label>
-                        <input type="text" value={getStyleVal('border')} onChange={(e) => handleStyleFieldChange('border', e.target.value)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs font-mono" placeholder="1px solid #000" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Border Details</label>
+                        <input type="text" value={getStyleVal('border')} onChange={(e) => handleStyleFieldChange('border', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="1px solid #000" />
                       </div>
                     </div>
                     {isContainer && (
                       <div>
-                        <label className="text-[10px] text-gray-500 mb-0.5 block">Background Image URL</label>
-                        <input type="text" value={getStyleVal('backgroundImage')} onChange={(e) => handleStyleFieldChange('backgroundImage', e.target.value.includes('url') ? e.target.value : `url('${e.target.value}')`)} className="w-full border border-gray-200 rounded-md p-1.5 text-xs font-mono" placeholder="url('https://...')" />
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Background Image URL</label>
+                        <input type="text" value={getStyleVal('backgroundImage')} onChange={(e) => handleStyleFieldChange('backgroundImage', e.target.value.includes('url') ? e.target.value : `url('${e.target.value}')`)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="url('https://...')" />
                       </div>
                     )}
                   </div>
@@ -464,9 +465,9 @@ export default function InspectorPanel({
       </div>
 
       {activeItemData && (
-        <div className="p-3 border-t border-gray-200 bg-gray-50 shrink-0 z-50 relative">
-          <button onClick={handleExecute} className="w-full py-3 bg-green-600 hover:bg-green-700 text-white font-bold text-[13px] tracking-wide rounded-lg shadow-sm cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2">
-            <i className="bi bi-save-fill"></i> Execute Engine
+        <div className="p-4 border-t border-slate-800 bg-slate-950 shrink-0 z-50 relative">
+          <button onClick={handleExecute} className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm tracking-wide rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2">
+            <i className="bi bi-save-fill text-lg"></i> Execute Engine
           </button>
         </div>
       )}

@@ -56,22 +56,16 @@ export default function Builder() {
     localStorage.setItem('emtee_autosave_preference', JSON.stringify(autoSave));
   }, [autoSave]);
 
-  // ==========================================
-  // ✨ ENGINE: HTML Parser for Custom User Edits
-  // ==========================================
   const handleApplyCodeChanges = (newHtml) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(newHtml, 'text/html');
     
-    // Attempt to extract just the main component area so we don't destroy Navbars/Sidebars
     const mainEl = doc.querySelector('main');
     let newContentHtml = mainEl ? mainEl.innerHTML : doc.body.innerHTML;
     
-    // Keep App Shell (Navbar, Sidebar, Footer)
     const preservedItems = layoutItems.filter(item => ['navbar', 'sidebar', 'footer'].includes(item.type));
     const rootNodeId = `element_${Date.now()}_root`;
     
-    // Wrap the edited HTML as a builder-compatible root layout block
     const newLayout = [
       ...preservedItems,
       {
@@ -97,13 +91,11 @@ export default function Builder() {
     const urlParamId = queryParams.get('ws');
     const user = auth.currentUser;
 
-    // Block non-logged-in users UNLESS they are viewing a shared link
     if (!user && !urlOwner) {
       navigate('/authentication', { replace: true });
       return;
     }
 
-    // 🌐 GUEST / SHARED LINK HANDLER
     if (urlOwner && urlOwner !== user?.uid && urlParamId) {
       const sharedRef = ref(db, `users/${urlOwner}/workspaces/${urlParamId}`);
       get(sharedRef).then(snap => {
@@ -114,7 +106,7 @@ export default function Builder() {
             navigate(user ? '/user/home' : '/authentication', { replace: true });
           } else {
             setSharedViewData({ owner: urlOwner, ...sharedWs });
-            setIsDataLoaded(true); // ✅ Critical: Allow the UI to render for guests
+            setIsDataLoaded(true); 
           }
         } else {
           alert('Error ❌\nShared workspace not found.');
@@ -126,7 +118,7 @@ export default function Builder() {
 
   useEffect(() => {
     const user = auth.currentUser;
-    if (!user) return; // Guests stop here, they don't have workspaces!
+    if (!user) return; 
 
     const HARDCODED_DEVS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
     const isHardcodedDev = user.email && HARDCODED_DEVS.includes(user.email.toLowerCase().trim());
@@ -155,7 +147,6 @@ export default function Builder() {
         });
         setIsDataLoaded(true);
       } else {
-        // If they have no workspaces, send to dashboard
         navigate('/user/home', { replace: true });
       }
     });
@@ -250,7 +241,6 @@ export default function Builder() {
     const name = prompt('Enter name for the new project:', 'New Component Project');
     if (!name || !name.trim()) return;
 
-    // ✨ Enforce Privacy Limit on creation
     const privateCount = workspaces.filter(w => !w.isPublic).length;
     const forcePublic = userRole === 'normal' && privateCount >= 1;
 
@@ -306,7 +296,6 @@ export default function Builder() {
     const match = workspaces.find(w => w.id === id);
     if (!match) return;
 
-    // ✨ Enforce Privacy Limit on duplication
     const privateCount = workspaces.filter(w => !w.isPublic).length;
     const forcePublic = userRole === 'normal' && privateCount >= 1;
 
@@ -374,11 +363,10 @@ export default function Builder() {
         tabletStyles: {}, mobileStyles: {}, rawHtml: ''
       });
     }  else {
-      // ✨ SMART GENERATOR FOR ALL HTML ELEMENTS
       const isContainer = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer'].includes(type);
       const isInput = ['input', 'textarea', 'select'].includes(type);
       const isMedia = ['img', 'video', 'iframe', 'canvas', 'svg'].includes(type);
-      const isImg = type === 'img'; // ✨ FIX: Added the missing isImg definition here!
+      const isImg = type === 'img'; 
       const isList = ['ul', 'ol', 'table', 'tr'].includes(type);
       const isListItem = ['li', 'td', 'th'].includes(type);
       const isLink = type === 'a';
@@ -391,7 +379,6 @@ export default function Builder() {
         src: type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : null,
         href: isLink ? '#' : null,
         
-        // Custom Input Attributes
         placeholder: isInput ? 'Enter text here...' : null,
         inputType: type === 'input' ? 'text' : null,
 
@@ -505,9 +492,6 @@ export default function Builder() {
   window.handleDuplicateItemExternal = handleDuplicateItem;
   window.handleRemoveItemExternal = handleRemoveItem;
 
-  // ==========================================
-  // ✨ ENGINE FIX: Dynamic HTML Sub-Node Picker 
-  // ==========================================
   useEffect(() => {
     const iframe = iframeRef.current;
     if (!iframe) return;
@@ -523,8 +507,6 @@ export default function Builder() {
       const handleMouseOver = (e) => {
         if (!isInspectMode) return;
         
-        // Target the ACTUAL element being hovered, skipping .closest() wrapper checks.
-        // This ensures inner HTML children of raw template chunks can be uniquely mapped.
         const target = e.target;
         if (!target || target === body || target.tagName === 'HTML' || target.id === 'canvas-sidebar') return;
         e.stopPropagation(); 
@@ -536,7 +518,7 @@ export default function Builder() {
         });
 
         if (target?.style) {
-          target.style.outline = '2px dashed #3b82f6';
+          target.style.outline = '2px dashed #818cf8';
           target.style.outlineOffset = '-2px';
           target.style.cursor = 'crosshair';
         }
@@ -669,16 +651,16 @@ export default function Builder() {
           top: `${toolbeltTop}px`, 
           left: `${Math.max(0, rect.left + scrollX)}px`,
           zIndex: '99999', display: 'flex', alignItems: 'center', gap: '5px',
-          backgroundColor: '#1e1b4b', padding: '4px 6px', borderRadius: '8px',
-          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
+          backgroundColor: '#0f172a', padding: '4px 6px', borderRadius: '8px',
+          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)', border: '1px solid #334155'
         });
         
         toolbelt.innerHTML = `
-          <span style="font-family: monospace; font-size: 9px; color: #a5b4fc; font-weight: bold; padding: 0 4px; text-transform: uppercase;">${item?.type || 'tag'}</span>
-          <button id="toolbelt-dup-action" style="background: #ffffff; border: none; color: #4f46e5; padding: 4px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 24px;" title="Duplicate Element">
+          <span style="font-family: monospace; font-size: 9px; color: #818cf8; font-weight: bold; padding: 0 4px; text-transform: uppercase;">${item?.type || 'tag'}</span>
+          <button id="toolbelt-dup-action" style="background: #1e293b; border: 1px solid #334155; color: #818cf8; padding: 4px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 24px;" title="Duplicate Element">
             <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
           </button>
-          <button id="toolbelt-del-action" style="background: #ef4444; border: none; color: #ffffff; padding: 4px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 24px;" title="Delete Element">
+          <button id="toolbelt-del-action" style="background: #1e293b; border: 1px solid #334155; color: #f87171; padding: 4px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 24px;" title="Delete Element">
             <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-16v1a1 1 0 001 1h3m-10 0H4m11 0h1.5M9 7h6"></path></svg>
           </button>
         `;
@@ -690,7 +672,7 @@ export default function Builder() {
         outline.id = 'emtee-selection-outline';
         Object.assign(outline.style, {
           position: 'absolute', top: `${rect.top + scrollY}px`, left: `${rect.left + scrollX}px`,
-          width: `${rect.width}px`, height: `${rect.height}px`, border: '2px solid #4f46e5',
+          width: `${rect.width}px`, height: `${rect.height}px`, border: '2px solid #6366f1',
           pointerEvents: 'none', zIndex: '99997'
         });
         doc.body.appendChild(outline);
@@ -702,9 +684,9 @@ export default function Builder() {
         const createAnchorSquare = (cursor) => {
           const sq = doc.createElement('div');
           Object.assign(sq.style, {
-            position: 'absolute', width: '8px', height: '8px', backgroundColor: '#ffffff',
-            border: '1.5px solid #4f46e5', borderRadius: '2px', cursor: cursor,
-            zIndex: '99998', boxShadow: '0 2px 4px rgba(0,0,0,0.15)'
+            position: 'absolute', width: '8px', height: '8px', backgroundColor: '#0f172a',
+            border: '1.5px solid #6366f1', borderRadius: '2px', cursor: cursor,
+            zIndex: '99998', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
           });
           resizersContainer.appendChild(sq);
           return sq;
@@ -761,7 +743,6 @@ export default function Builder() {
             outline.style.height = `${currentH}px`;
           }
 
-          // ✨ Keep toolbelt attached properly during resizing!
           let newToolbeltTop = rect.top + scrollY - 32;
           if (newToolbeltTop < scrollY) newToolbeltTop = rect.top + scrollY + 6;
           
@@ -850,9 +831,7 @@ export default function Builder() {
         navigate('/authentication');
         return;
       }
-      const sharedLayoutsStr = typeof sharedViewData.layouts === 'string' ? sharedViewData.layouts : JSON.stringify(sharedViewData.layouts || []);
       
-
       if (userRole === 'normal' && workspaces.length >= 3) {
          alert('Free Plan Limit: You can only have 3 active workspaces. Please delete an existing workspace from your Dashboard before importing this one.');
          return;
@@ -881,24 +860,24 @@ export default function Builder() {
     };
 
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col font-sans">
-        <nav className="h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-white shrink-0 shadow-lg">
+      <div className="min-h-screen bg-slate-950 flex flex-col font-sans text-slate-200">
+        <nav className="h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 shadow-md">
           <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center shadow-lg"><i className="bi bi-lightning-charge-fill text-white"></i></div>
+            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)]"><i className="bi bi-lightning-charge-fill text-white"></i></div>
             <div>
-              <div className="font-bold text-sm tracking-wide text-slate-100">{sharedViewData.name}</div>
-              <div className="text-[10px] text-slate-400 font-mono mt-0.5">Author: @{new URLSearchParams(location.search).get('u') || 'user'}</div>
+              <div className="font-bold text-sm tracking-wide text-white">{sharedViewData.name}</div>
+              <div className="text-[10px] text-slate-500 font-mono mt-0.5">Author: @{new URLSearchParams(location.search).get('u') || 'user'}</div>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert('Public link copied to clipboard!'); }} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-all flex items-center gap-2 border border-slate-700 cursor-pointer">
+            <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert('Public link copied to clipboard!'); }} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs transition-colors border border-slate-700 cursor-pointer flex items-center gap-2">
               <i className="bi bi-share"></i> Share Link
             </button>
-            <button onClick={handleImportShared} className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-900/20 cursor-pointer">
+            <button onClick={handleImportShared} className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] cursor-pointer flex items-center gap-2">
               <i className="bi bi-cloud-download"></i> Clone to My Workspace
             </button>
-            <div className="w-px h-6 bg-slate-700 mx-1"></div>
-            <button onClick={() => { setSharedViewData(null); navigate('/user/home'); }} className="w-8 h-8 flex items-center justify-center bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition-all border border-slate-700 hover:border-red-500/50 cursor-pointer" title="Exit Viewer">
+            <div className="w-px h-6 bg-slate-800 mx-1"></div>
+            <button onClick={() => { setSharedViewData(null); navigate('/user/home'); }} className="w-8 h-8 flex items-center justify-center bg-slate-900 hover:bg-red-500/20 text-slate-500 hover:text-red-400 rounded-lg transition-colors border border-slate-800 hover:border-red-500/50 cursor-pointer" title="Exit Viewer">
               <i className="bi bi-x-lg"></i>
             </button>
           </div>
@@ -920,14 +899,14 @@ export default function Builder() {
 
   if (!isDataLoaded) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-slate-950 flex">
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} layoutItems={layoutItems} onAddItem={handleAddItem} onOpenWorkspaces={() => setIsWorkspacesModalOpen(true)} />
       
       <div className="flex flex-col flex-1 transition-all duration-300" style={{ paddingLeft: isCollapsed ? '4rem' : '16rem' }}>
@@ -940,7 +919,7 @@ export default function Builder() {
           onOpenSettings={() => setIsSettingsModalOpen(true)}
         />
         
-        <main className="p-2 mt-16 max-w-[1600px] w-full mx-auto flex flex-col flex-1 relative">
+        <main className="p-4 mt-16 max-w-[1600px] w-full mx-auto flex flex-col flex-1 relative">
           <CanvasContainer 
             code={currentCompiledCode} 
             iframeRef={iframeRef} 
@@ -968,7 +947,7 @@ export default function Builder() {
       />
 
       <WorkspaceSettingsModal isOpen={!!workspaceSettingsTarget} onClose={() => setWorkspaceSettingsTarget(null)} workspace={workspaceSettingsTarget} onSave={handleSaveWorkspaceSettings} userRole={userRole} workspaces={workspaces} />
-      <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} code={currentCompiledCode} projectName={activeWorkspaceName} />
+      <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} code={currentCompiledCode} projectName={activeWorkspaceName} userRole={userRole} />
     </div>
   );
 }

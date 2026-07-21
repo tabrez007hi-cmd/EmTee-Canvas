@@ -11,7 +11,6 @@ export default function DevAccessModal({ isOpen, onClose }) {
   const handleGrantAccess = async () => {
     if (!email.trim()) return;
     try {
-      // Firebase keys cannot contain certain characters, so we sanitize the email
       const sanitizedEmail = email.toLowerCase().trim().replace(/[.#$[\]]/g, '_');
       await set(ref(db, `developerWhitelists/${sanitizedEmail}`), true);
       setStatus('Success! User granted Developer Access. ✅');
@@ -23,24 +22,31 @@ export default function DevAccessModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 relative">
-        <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:bg-slate-100 p-1.5 rounded-full"><i className="bi bi-x-lg"></i></button>
-        <h2 className="text-lg font-bold text-slate-800 mb-4 border-b pb-2"><i className="bi bi-shield-lock-fill text-indigo-600"></i> Grant Dev Access</h2>
-        <p className="text-xs text-slate-500 mb-4">Enter a user's email to permanently upgrade their account to Developer status.</p>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+      <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] w-full max-w-sm p-6 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-bl-full pointer-events-none"></div>
+
+        <button onClick={onClose} className="absolute top-4 right-4 text-slate-500 hover:text-white bg-slate-800 border border-slate-700 w-8 h-8 rounded-full flex items-center justify-center cursor-pointer transition-colors z-10"><i className="bi bi-x-lg text-sm"></i></button>
         
-        <input 
-          type="email" 
-          value={email} 
-          onChange={(e) => setEmail(e.target.value)} 
-          placeholder="user@gmail.com" 
-          className="w-full border border-slate-300 rounded-lg px-4 py-2 text-sm mb-3 focus:outline-none focus:border-indigo-500"
-        />
-        {status && <div className="text-xs font-bold text-green-600 mb-3">{status}</div>}
+        <h2 className="text-lg font-bold text-white mb-4 border-b border-slate-800 pb-3 relative z-10">
+          <i className="bi bi-shield-lock-fill text-indigo-500 mr-2 drop-shadow-[0_0_8px_rgba(79,70,229,0.8)]"></i> Grant Dev Access
+        </h2>
+        <p className="text-xs text-slate-400 mb-5 relative z-10 leading-relaxed">Enter a user's email to permanently upgrade their account to Developer status.</p>
         
-        <button onClick={handleGrantAccess} className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-lg text-sm shadow-md transition-all">
-          Authorize User
-        </button>
+        <div className="relative z-10">
+          <input 
+            type="email" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            placeholder="user@gmail.com" 
+            className="w-full bg-slate-950 border border-slate-700 text-white rounded-xl px-4 py-3 text-sm mb-3 focus:outline-none focus:border-indigo-500 transition-colors"
+          />
+          {status && <div className="text-xs font-bold text-emerald-400 mb-3 bg-emerald-500/10 border border-emerald-500/30 p-2 rounded-lg">{status}</div>}
+          
+          <button onClick={handleGrantAccess} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl text-sm shadow-[0_0_15px_rgba(79,70,229,0.4)] transition-all cursor-pointer">
+            Authorize User
+          </button>
+        </div>
       </div>
     </div>
   );

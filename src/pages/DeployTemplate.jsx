@@ -25,16 +25,13 @@ export default function DeployTemplate() {
     const HARDCODED_DEVS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
     const isHardcodedDev = user.email && HARDCODED_DEVS.includes(user.email.toLowerCase().trim());
 
-    // 1. Fetch Profile Role
     const profileRef = ref(db, `users/${user.uid}/profile`);
     onValue(profileRef, (snapshot) => {
       if (snapshot.exists()) {
          const data = snapshot.val();
-         setUserProfile(data);
          setUserRole(isHardcodedDev ? 'developer' : (data.role || 'normal'));
       }
     });
-    
 
     const searchParams = new URLSearchParams(location.search);
     const targetEditId = searchParams.get('edit');
@@ -83,39 +80,39 @@ export default function DeployTemplate() {
     finally { setIsDeploying(false); }
   };
 
-  // ✨ CSS FIX: Flex container h-screen with fixed navbar and inner scroll
   return (
-    <div className="h-screen w-full bg-slate-50 flex flex-col font-sans overflow-hidden">
-      <nav className="h-16 px-6 bg-white border-b border-slate-200 flex items-center justify-between shrink-0 shadow-sm z-10">
+    <div className="h-screen w-full bg-slate-950 flex flex-col font-sans overflow-hidden text-slate-200">
+      <nav className="h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md"><i className="bi bi-lightning-charge-fill text-white"></i></div>
-          <span className="font-bold text-slate-800 text-lg">EmTeeCanvas</span>
-          <div className="h-4 w-px bg-slate-300 mx-2 hidden sm:block"></div>
-          <span className="text-sm font-semibold text-slate-500 hidden sm:block">{editTemplateId ? 'Edit Template' : 'Template Deployment'}</span>
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)]"><i className="bi bi-lightning-charge-fill text-white"></i></div>
+          <span className="font-bold text-white text-lg tracking-tight">EmTeeCanvas</span>
+          <div className="h-4 w-px bg-slate-700 mx-2 hidden sm:block"></div>
+          <span className="text-sm font-semibold text-slate-400 hidden sm:block">{editTemplateId ? 'Edit Template' : 'Template Deployment'}</span>
         </div>
-        <button onClick={() => navigate('/user/home')} className="px-4 py-2 bg-slate-100 text-slate-600 text-xs font-bold rounded-lg cursor-pointer"><i className="bi bi-arrow-left"></i> Return</button>
+        <button onClick={() => navigate('/user/home')} className="px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-lg cursor-pointer transition-colors"><i className="bi bi-arrow-left"></i> Return</button>
       </nav>
 
       <main className="flex-1 w-full max-w-5xl mx-auto p-6 sm:p-10 overflow-y-auto custom-scrollbar">
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden mb-12">
-          <div className={`${editTemplateId ? 'bg-emerald-600' : 'bg-indigo-600'} p-6 sm:p-8 text-white`}>
-            <h1 className="text-2xl font-extrabold mb-2">{editTemplateId ? 'Update HTML Template' : 'Deploy HTML Template'}</h1>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_0_30px_rgba(0,0,0,0.5)] overflow-hidden mb-12">
+          <div className={`${editTemplateId ? 'bg-emerald-600' : 'bg-indigo-600'} p-6 sm:p-8 text-white relative overflow-hidden`}>
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-bl-full pointer-events-none"></div>
+            <h1 className="text-2xl font-extrabold mb-2 relative z-10">{editTemplateId ? 'Update HTML Template' : 'Deploy HTML Template'}</h1>
           </div>
           <form onSubmit={handleDeploy} className="p-6 space-y-6">
-            {error && <div className="bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm font-bold">{error}</div>}
+            {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg text-sm font-bold">{error}</div>}
             <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
               <div className="md:col-span-4 space-y-4">
-                <div><label className="text-[10px] font-bold text-slate-500 uppercase">Template Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full border rounded-xl px-4 py-2.5 text-sm" /></div>
-                <div><label className="text-[10px] font-bold text-slate-500 uppercase">Icon Class</label><input type="text" value={icon} onChange={(e) => setIcon(e.target.value)} className="w-full border rounded-xl px-4 py-2.5 text-sm font-mono" /></div>
-                <div><label className="text-[10px] font-bold text-slate-500 uppercase">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full border rounded-xl px-4 py-2.5 text-sm min-h-[120px]" /></div>
+                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Template Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-200 focus:border-indigo-500 outline-none" /></div>
+                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Icon Class</label><input type="text" value={icon} onChange={(e) => setIcon(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm font-mono text-slate-200 focus:border-indigo-500 outline-none" /></div>
+                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Description</label><textarea value={description} onChange={(e) => setDescription(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm min-h-[120px] text-slate-200 focus:border-indigo-500 outline-none custom-scrollbar" /></div>
               </div>
               <div className="md:col-span-8 flex flex-col min-h-[400px]">
-                <label className="text-[10px] font-bold text-slate-500 uppercase mb-1.5">Raw HTML Code</label>
-                <textarea value={htmlCode} onChange={(e) => setHtmlCode(e.target.value)} className="flex-1 w-full border rounded-xl p-4 text-sm font-mono text-indigo-700 bg-slate-50" spellCheck="false" />
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Raw HTML Code</label>
+                <textarea value={htmlCode} onChange={(e) => setHtmlCode(e.target.value)} className="flex-1 w-full border border-slate-800 rounded-xl p-4 text-sm font-mono text-emerald-400 bg-slate-950 focus:border-indigo-500 outline-none custom-scrollbar" spellCheck="false" />
               </div>
             </div>
-            <div className="pt-6 border-t flex justify-end">
-              <button type="submit" disabled={isDeploying} className="px-8 py-3 bg-indigo-600 text-white font-bold text-sm rounded-xl"><i className="bi bi-cloud-arrow-up-fill"></i> Deploy Template</button>
+            <div className="pt-6 border-t border-slate-800 flex justify-end">
+              <button type="submit" disabled={isDeploying} className="px-8 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm rounded-xl shadow-[0_0_15px_rgba(79,70,229,0.3)] transition-colors cursor-pointer"><i className="bi bi-cloud-arrow-up-fill"></i> Deploy Template</button>
             </div>
           </form>
         </div>
