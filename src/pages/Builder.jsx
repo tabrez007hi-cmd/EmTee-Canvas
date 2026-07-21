@@ -56,13 +56,6 @@ export default function Builder() {
     localStorage.setItem('emtee_autosave_preference', JSON.stringify(autoSave));
   }, [autoSave]);
 
-  useEffect(() => {
-    setIsAccountModalOpen(location.pathname.includes('/account'));
-    setIsSettingsModalOpen(location.pathname.includes('/settings'));
-  }, [location]);
-
-  const handleCloseModals = () => navigate('/builder' + location.search);
-
   // ==========================================
   // ✨ ENGINE: HTML Parser for Custom User Edits
   // ==========================================
@@ -943,8 +936,8 @@ export default function Builder() {
           activeWorkspaceName={activeWorkspaceName} onSaveWorkspace={handleSaveWorkspaceExplicitly} 
           onOpenExport={() => setIsExportModalOpen(true)}
           onGoHome={() => navigate('/user/home')}
-          onOpenAccount={() => navigate('/builder/account' + location.search)} 
-          onOpenSettings={() => navigate('/builder/settings' + location.search)} 
+          onOpenAccount={() => setIsAccountModalOpen(true)} 
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
         />
         
         <main className="p-2 mt-16 max-w-[1600px] w-full mx-auto flex flex-col flex-1 relative">
@@ -962,8 +955,8 @@ export default function Builder() {
         </main>
       </div>
 
-      <AccountModal isOpen={isAccountModalOpen} onClose={handleCloseModals} userProfile={userProfile} />
-      <SettingsModal isOpen={isSettingsModalOpen} onClose={handleCloseModals} autoSave={autoSave} onToggleAutoSave={() => setAutoSave(prev => !prev)} />
+      <AccountModal isOpen={isAccountModalOpen} onClose={() => setIsAccountModalOpen(false)} userProfile={userProfile} />
+      <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} autoSave={autoSave} onToggleAutoSave={() => setAutoSave(prev => !prev)} />
       
       <WorkspacesModal 
         isOpen={isWorkspacesModalOpen} onClose={() => setIsWorkspacesModalOpen(false)} 
