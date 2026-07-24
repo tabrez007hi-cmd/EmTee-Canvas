@@ -13,13 +13,14 @@ export default function SettingsModal({ isOpen, onClose, autoSave, onToggleAutoS
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
+    <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.5)] w-full max-w-sm p-6 relative overflow-hidden text-slate-200">
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-bl-full pointer-events-none z-0"></div>
 
-        <button onClick={onClose} className="cursor-pointer absolute top-4 right-4 text-slate-500 hover:text-white transition-colors bg-slate-800 border border-slate-700 w-8 h-8 rounded-full flex items-center justify-center z-10">
+        <button onClick={onClose} className="cursor-pointer absolute top-4 right-4 text-slate-500 hover:text-white transition-colors bg-slate-800 border border-slate-700 w-8 h-8 rounded-full flex items-center justify-center z-100">
           <i className="bi bi-x-lg text-sm"></i>
         </button>
+        
 
         <h2 className="text-xl font-bold text-white mb-6 text-center border-b border-slate-800 pb-4 relative z-10">
           <i className="bi bi-gear-fill text-indigo-500 mr-2 drop-shadow-[0_0_8px_rgba(79,70,229,0.8)]"></i> Settings

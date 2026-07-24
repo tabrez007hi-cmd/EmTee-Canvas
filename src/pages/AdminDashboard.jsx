@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { ref, onValue, set, update, get } from 'firebase/database';
 
-const ADMIN_EMAILS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
-
+const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+      : [];
+      
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, set, update, get } from 'firebase/database';
+import { ref, onValue, set, update } from 'firebase/database';
 
 import AccountModal from '../components/AccountModal';
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal'; 
@@ -47,8 +47,10 @@ export default function UserHome() {
     const user = auth.currentUser;
     if (!user) { navigate('/authentication'); return; }
 
-    const HARDCODED_DEVS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
-    const isHardcodedDev = user.email && HARDCODED_DEVS.includes(user.email.toLowerCase().trim());
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+      : [];
+    const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
     const profileRef = ref(db, `users/${user.uid}/profile`);
     onValue(profileRef, (snapshot) => {
@@ -71,27 +73,19 @@ export default function UserHome() {
       else setGlobalTemplates([]);
     });
 
-    onValue(ref(db, 'users'), (snapshot) => {
+    // ✨ SECURE EXPLORE TAB: Fetching strictly from the isolated public node
+    onValue(ref(db, 'publicWorkspaces'), (snapshot) => {
       if (snapshot.exists()) {
-        const allUsers = snapshot.val();
-        const publicItems = [];
-        Object.entries(allUsers).forEach(([uid, userData]) => {
-          if (userData.workspaces && userData.profile) {
-             let authorRole = userData.profile.role || 'normal';
-             if (userData.profile.email && HARDCODED_DEVS.includes(userData.profile.email.toLowerCase())) authorRole = 'developer';
-
-             Object.values(userData.workspaces).forEach(ws => {
-                if (ws.isPublic) {
-                   publicItems.push({
-                      ...ws, authorId: uid, authorName: userData.profile.username || 'Unknown', authorPhoto: userData.profile.photoURL || null, authorRole: authorRole,
-                      likeCount: ws.likes ? Object.keys(ws.likes).length : 0, isLikedByMe: ws.likes ? !!ws.likes[user.uid] : false
-                   });
-                }
-             });
-          }
-        });
-        publicItems.sort((a, b) => b.createdAt - a.createdAt);
-        setExploreWorkspaces(publicItems);
+        const publicItems = Object.values(snapshot.val());
+        const formattedItems = publicItems.map(ws => ({
+          ...ws,
+          likeCount: ws.likes ? Object.keys(ws.likes).length : 0,
+          isLikedByMe: ws.likes ? !!ws.likes[user.uid] : false
+        }));
+        formattedItems.sort((a, b) => b.updatedAt - a.updatedAt);
+        setExploreWorkspaces(formattedItems);
+      } else {
+        setExploreWorkspaces([]);
       }
     });
   }, [navigate]);
@@ -114,6 +108,7 @@ export default function UserHome() {
       executeCloneSave(layoutsStr, defaultName);
   };
 
+  // ✨ SECURE DUAL-SAVE ENGINE: Pushes data to the user folder AND the public folder if public
   const executeCloneSave = (layoutsStr, defaultName, replaceId = null) => {
     const user = auth.currentUser;
     const newId = generateProjectSlug(defaultName);
@@ -127,25 +122,41 @@ export default function UserHome() {
       createdAt: Date.now(), updatedAt: Date.now() 
     };
 
+    const dbUpdates = {};
     if (replaceId) {
-       set(ref(db, `users/${user.uid}/workspaces/${replaceId}`), null).then(() => {
-          set(ref(db, `users/${user.uid}/workspaces/${newId}`), newWS).then(() => {
-             navigate(`/builder?u=${userProfile?.username || 'user'}&ws=${newId}`);
-          });
-       });
-    } else {
-       set(ref(db, `users/${user.uid}/workspaces/${newId}`), newWS).then(() => {
-          navigate(`/builder?u=${userProfile?.username || 'user'}&ws=${newId}`);
-       });
+       dbUpdates[`users/${user.uid}/workspaces/${replaceId}`] = null;
+       dbUpdates[`publicWorkspaces/${replaceId}`] = null; // Clean up the public node too
     }
+    
+    dbUpdates[`users/${user.uid}/workspaces/${newId}`] = newWS;
+    
+    if (forcePublic) {
+       dbUpdates[`publicWorkspaces/${newId}`] = { 
+         ...newWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+         authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+       };
+    }
+
+    update(ref(db), dbUpdates).then(() => {
+       navigate(`/builder?u=${userProfile?.username || 'user'}&ws=${newId}`);
+    });
   };
 
+  // ✨ SECURE LIKES: Syncing likes across both nodes
   const handleToggleLike = async (e, workspaceId, authorId, isLikedByMe) => {
     e.stopPropagation();
     const user = auth.currentUser;
     if (!user) return;
-    const likeRef = ref(db, `users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`);
-    if (isLikedByMe) await set(likeRef, null); else await set(likeRef, true);
+    
+    const updates = {};
+    if (isLikedByMe) {
+      updates[`users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`] = null;
+      updates[`publicWorkspaces/${workspaceId}/likes/${user.uid}`] = null;
+    } else {
+      updates[`users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`] = true;
+      updates[`publicWorkspaces/${workspaceId}/likes/${user.uid}`] = true;
+    }
+    await update(ref(db), updates);
   };
 
   const handleDeleteTemplate = async (templateId) => {
@@ -165,10 +176,32 @@ export default function UserHome() {
 
     const dbUpdates = {};
     dbUpdates[`users/${user.uid}/workspaces/${newId}`] = updatedWS;
-    if (id !== newId) dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+    
+    if (id !== newId) {
+      dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+      dbUpdates[`publicWorkspaces/${id}`] = null; // Purge old public ID
+    }
+
+    // Sync visibility strictly
+    if (updatedWS.isPublic) {
+      dbUpdates[`publicWorkspaces/${newId}`] = { 
+        ...updatedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+        authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+      };
+    } else {
+      dbUpdates[`publicWorkspaces/${newId}`] = null; // Yank it from public view if made private
+    }
+
     if (swapId) {
       const swapMatch = workspaces.find(w => w.id === swapId);
-      if (swapMatch) dbUpdates[`users/${user.uid}/workspaces/${swapId}`] = { ...swapMatch, isPublic: true, updatedAt: Date.now() };
+      if (swapMatch) {
+        const swappedWS = { ...swapMatch, isPublic: true, updatedAt: Date.now() };
+        dbUpdates[`users/${user.uid}/workspaces/${swapId}`] = swappedWS;
+        dbUpdates[`publicWorkspaces/${swapId}`] = { 
+          ...swappedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+        };
+      }
     }
 
     try {
@@ -244,7 +277,7 @@ export default function UserHome() {
       </aside>
 
       <div className="flex-1 flex flex-col h-full min-w-0 bg-slate-950">
-        <nav className="h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 z-10 shadow-md md:shadow-none">
+        <nav className="relative h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 z-50 shadow-md md:shadow-none">0
           <div className="flex items-center gap-3 md:hidden">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)]"><i className="bi bi-lightning-charge-fill text-white"></i></div>
           </div>
@@ -280,7 +313,6 @@ export default function UserHome() {
         </main>
       </div>
 
-      {/* ✨ NEW: Dual-Mode Preview & Code Modal for Explore / Templates */}
       {previewItem && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-4 sm:p-8 animate-fade-in">
           <div className="bg-slate-900 rounded-3xl shadow-[0_0_50px_rgba(0,0,0,0.5)] w-full h-full max-w-6xl flex flex-col overflow-hidden relative border border-slate-800">
@@ -311,7 +343,6 @@ export default function UserHome() {
         </div>
       )}
 
-      {/* ✨ NEW: Workspace Replacement Override Modal */}
       {pendingClone && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-950/80 backdrop-blur-md animate-fade-in p-4">
            <div className="bg-slate-900 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-800">

@@ -1,20 +1,13 @@
 import React, { useState } from 'react';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAddItem, onOpenWorkspaces }) {
-  const [isComponentsOpen, setIsComponentsOpen] = useState(false);
   const [isContainersOpen, setIsContainersOpen] = useState(false);
   const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [isElementsOpen, setIsElementsOpen] = useState(false);
   const [isFormsOpen, setIsFormsOpen] = useState(false); 
   const [isListsOpen, setIsListsOpen] = useState(false); 
 
-  const majorComponents = [
-    { type: 'navbar', icon: 'bi-segmented-nav', label: 'Navbar Layout' },
-    { type: 'sidebar', icon: 'bi-layout-sidebar-inset', label: 'Sidebar Panel' },
-    { type: 'footer', icon: 'bi-layout-text-window-reverse', label: 'Footer Base' },
-  ];
-  
-  const containerElements = ['div', 'section', 'article', 'header', 'aside'];
+  const containerElements = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav'];
   const mediaElements = ['img', 'video', 'iframe', 'canvas', 'svg'];
   const textElements = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'span', 'a', 'b', 'strong', 'i', 'em', 'blockquote', 'code', 'pre'];
   const formElements = ['form', 'input', 'textarea', 'select', 'button', 'label'];
@@ -49,30 +42,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
         {!isCollapsed && <span className="font-extrabold text-white text-base tracking-tight drop-shadow-md">EmTeeCanvas</span>}
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto custom-scrollbar">
-        {/* Components */}
-        <div>
-          <button onClick={() => { if(isCollapsed) setIsCollapsed(false); setIsComponentsOpen(!isComponentsOpen); }} className="w-full flex items-center justify-between px-3 py-2 text-slate-300 rounded-lg hover:bg-slate-800 hover:text-white cursor-pointer text-sm transition-colors">
-            <div className="flex items-center gap-3"><i className="bi bi-box-seam text-base text-slate-400"></i>{!isCollapsed && <span>Components</span>}</div>
-            {!isCollapsed && <i className={`bi bi-chevron-down text-xs text-slate-500 transition-transform ${isComponentsOpen ? 'rotate-180' : ''}`}></i>}
-          </button>
-          {isComponentsOpen && !isCollapsed && (
-            <div className="mt-1 ml-4 pl-2 border-l border-slate-800 space-y-1">
-              {majorComponents.map(item => {
-                const isAlreadyAdded = layoutItems.some(layoutItem => layoutItem.type === item.type);
-                return (
-                  <div key={item.type} className="flex items-center justify-between p-1.5 hover:bg-slate-800/50 rounded-lg transition-colors">
-                    <span className={`text-xs flex items-center gap-2 ${isAlreadyAdded ? 'text-slate-600' : 'text-slate-300 font-semibold'}`}><i className={`bi ${item.icon}`}></i>{item.label}</span>
-                    <button onClick={() => !isAlreadyAdded && onAddItem(item.type)} disabled={isAlreadyAdded} className={`px-2 py-0.5 text-[10px] font-bold rounded border transition-all ${isAlreadyAdded ? 'bg-slate-900 border-slate-800 text-slate-600 cursor-not-allowed' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/20 cursor-pointer shadow-sm'}`}>
-                      {isAlreadyAdded ? 'Added' : 'Add'}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
+      <nav className="flex-1 px-2 py-4 space-y-2 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {/* Dynamic Element Sections matching dark neon theme */}
         {renderSection("Containers", "bi-bounding-box", isContainersOpen, setIsContainersOpen, containerElements, "flex-1 min-w-[70px] px-2 py-2 font-mono font-bold text-center text-xs text-indigo-400 bg-indigo-500/10 border border-indigo-500/30 rounded-lg hover:bg-indigo-500/20 cursor-pointer transition-colors shadow-sm")}
         {renderSection("Forms & Inputs", "bi-ui-radios", isFormsOpen, setIsFormsOpen, formElements, "flex-1 min-w-[60px] px-2 py-1.5 font-mono font-bold text-center text-xs text-pink-400 bg-pink-500/10 border border-pink-500/30 rounded-lg hover:bg-pink-500/20 cursor-pointer transition-colors shadow-sm")}

@@ -21,7 +21,7 @@ export default function AccountModal({ isOpen, onClose, userProfile }) {
         {/* Glow */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-bl-full pointer-events-none"></div>
 
-        <button onClick={onClose} className="cursor-pointer absolute top-4 right-4 text-slate-500 hover:text-white transition-colors bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center border border-slate-700">
+        <button onClick={onClose} className="cursor-pointer absolute top-4 right-4 text-slate-500 hover:text-white transition-colors bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center border border-slate-700 z-100">
           <i className="bi bi-x-lg text-sm"></i>
         </button>
 

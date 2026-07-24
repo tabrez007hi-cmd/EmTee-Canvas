@@ -11,7 +11,7 @@ import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
 import ExportModal from '../components/ExportModal'; 
 import { generateCanvasHtml } from '../utils/templates';
 import { auth, db } from '../firebase';
-import { ref, get, set, onValue } from 'firebase/database';
+import { ref, get, set, onValue, update } from 'firebase/database';
 
 const generateProjectSlug = (name) => {
   const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
@@ -96,21 +96,31 @@ export default function Builder() {
       return;
     }
 
+    // ✨ UPDATED: The shared viewer now checks the 'publicWorkspaces' node first if available
     if (urlOwner && urlOwner !== user?.uid && urlParamId) {
-      const sharedRef = ref(db, `users/${urlOwner}/workspaces/${urlParamId}`);
+      const sharedRef = ref(db, `publicWorkspaces/${urlParamId}`);
       get(sharedRef).then(snap => {
         if (snap.exists()) {
-          const sharedWs = snap.val();
-          if (!sharedWs.isPublic && !sharedWs.isShareable) {
-            alert('Access Denied 🔒\nThis workspace is private.');
-            navigate(user ? '/user/home' : '/authentication', { replace: true });
-          } else {
-            setSharedViewData({ owner: urlOwner, ...sharedWs });
-            setIsDataLoaded(true); 
-          }
+          setSharedViewData({ owner: urlOwner, ...snap.val() });
+          setIsDataLoaded(true); 
         } else {
-          alert('Error ❌\nShared workspace not found.');
-          navigate(user ? '/user/home' : '/authentication', { replace: true });
+          // Fallback to checking their private directory if they sent a direct share link
+          const privateRef = ref(db, `users/${urlOwner}/workspaces/${urlParamId}`);
+          get(privateRef).then(privSnap => {
+             if (privSnap.exists()) {
+                const sharedWs = privSnap.val();
+                if (!sharedWs.isPublic && !sharedWs.isShareable) {
+                  alert('Access Denied 🔒\nThis workspace is private.');
+                  navigate(user ? '/user/home' : '/authentication', { replace: true });
+                } else {
+                  setSharedViewData({ owner: urlOwner, ...sharedWs });
+                  setIsDataLoaded(true); 
+                }
+             } else {
+                alert('Error ❌\nShared workspace not found.');
+                navigate(user ? '/user/home' : '/authentication', { replace: true });
+             }
+          });
         }
       });
     }
@@ -120,8 +130,10 @@ export default function Builder() {
     const user = auth.currentUser;
     if (!user) return; 
 
-    const HARDCODED_DEVS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
-    const isHardcodedDev = user.email && HARDCODED_DEVS.includes(user.email.toLowerCase().trim());
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+      : [];
+    const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
     const profileRef = ref(db, `users/${user.uid}/profile`);
     onValue(profileRef, (snapshot) => {
@@ -186,6 +198,7 @@ export default function Builder() {
     }
   }, [activeWorkspaceId, workspaces, sharedViewData]);
 
+  // ✨ SECURE AUTO-SAVE ENGINE: Pushes to both isolated databases simultaneously
   useEffect(() => {
     if (isDataLoaded && auth.currentUser && activeWorkspaceId && autoSave && loadedWorkspaceId === activeWorkspaceId && !sharedViewData) {
       const currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
@@ -207,10 +220,21 @@ export default function Builder() {
         updatedAt: Date.now()
       };
       
-      set(ref(db, `users/${auth.currentUser.uid}/workspaces/${activeWorkspaceId}`), updatedProject);
+      const dbUpdates = {};
+      dbUpdates[`users/${auth.currentUser.uid}/workspaces/${activeWorkspaceId}`] = updatedProject;
+      
+      if (updatedProject.isPublic) {
+         dbUpdates[`publicWorkspaces/${activeWorkspaceId}`] = { 
+            ...updatedProject, authorId: auth.currentUser.uid, authorName: userProfile?.username || 'Unknown', 
+            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+         };
+      }
+      
+      update(ref(db), dbUpdates);
     }
   }, [layoutItems, isDataLoaded, activeWorkspaceId, autoSave, workspaces, loadedWorkspaceId, sharedViewData]);
 
+  // ✨ SECURE MANUAL SAVE
   const handleSaveWorkspaceExplicitly = () => {
     const user = auth.currentUser;
     if (!user || !activeWorkspaceId) return;
@@ -224,7 +248,17 @@ export default function Builder() {
       updatedAt: Date.now()
     };
 
-    set(ref(db, `users/${user.uid}/workspaces/${activeWorkspaceId}`), updatedProject).then(() => {
+    const dbUpdates = {};
+    dbUpdates[`users/${user.uid}/workspaces/${activeWorkspaceId}`] = updatedProject;
+    
+    if (updatedProject.isPublic) {
+       dbUpdates[`publicWorkspaces/${activeWorkspaceId}`] = { 
+          ...updatedProject, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+       };
+    }
+
+    update(ref(db), dbUpdates).then(() => {
       alert('Workspace sync complete! Project changes committed to cloud database successfully.');
     });
   };
@@ -248,16 +282,32 @@ export default function Builder() {
     const newId = generateProjectSlug(name);
     const newWS = { id: newId, name: name.trim(), layouts: '[]', isPublic: forcePublic, allowCodeView: false, allowDomView: false, createdAt: Date.now(), updatedAt: Date.now() };
     
-    set(ref(db, `users/${user.uid}/workspaces/${newId}`), newWS).then(() => {
+    const dbUpdates = {};
+    dbUpdates[`users/${user.uid}/workspaces/${newId}`] = newWS;
+    
+    if (forcePublic) {
+       dbUpdates[`publicWorkspaces/${newId}`] = { 
+          ...newWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+       };
+    }
+
+    update(ref(db), dbUpdates).then(() => {
       setActiveWorkspaceId(newId);
     });
   };
 
+  // ✨ SECURE DELETION: Removes from both tables to avoid ghost projects
   const handleDeleteWorkspace = (id) => {
     if (workspaces.length <= 1) return;
     if (!window.confirm('Are you absolutely sure you want to drop this workspace project permanently? 🚨')) return;
     const user = auth.currentUser;
-    set(ref(db, `users/${user.uid}/workspaces/${id}`), null);
+    
+    const dbUpdates = {};
+    dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+    dbUpdates[`publicWorkspaces/${id}`] = null;
+    
+    update(ref(db), dbUpdates);
   };
 
   const handleSaveWorkspaceSettings = (id, updates) => {
@@ -275,10 +325,26 @@ export default function Builder() {
         updatedAt: Date.now() 
       };
       
-      set(ref(db, `users/${user.uid}/workspaces/${newId}`), updatedWS).then(() => {
-        if (id !== newId) {
-          set(ref(db, `users/${user.uid}/workspaces/${id}`), null);
-          if (activeWorkspaceId === id) setActiveWorkspaceId(newId);
+      const dbUpdates = {};
+      dbUpdates[`users/${user.uid}/workspaces/${newId}`] = updatedWS;
+      
+      if (id !== newId) {
+        dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+        dbUpdates[`publicWorkspaces/${id}`] = null;
+      }
+      
+      if (updatedWS.isPublic) {
+         dbUpdates[`publicWorkspaces/${newId}`] = { 
+            ...updatedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+         };
+      } else {
+         dbUpdates[`publicWorkspaces/${newId}`] = null; // Remove from explore feed if made private
+      }
+
+      update(ref(db), dbUpdates).then(() => {
+        if (id !== newId && activeWorkspaceId === id) {
+          setActiveWorkspaceId(newId);
         }
       });
     }
@@ -308,7 +374,18 @@ export default function Builder() {
       isPublic: forcePublic, allowCodeView: false, allowDomView: false,
       createdAt: Date.now(), updatedAt: Date.now()
     };
-    set(ref(db, `users/${user.uid}/workspaces/${copyId}`), clonedWS);
+    
+    const dbUpdates = {};
+    dbUpdates[`users/${user.uid}/workspaces/${copyId}`] = clonedWS;
+    
+    if (forcePublic) {
+       dbUpdates[`publicWorkspaces/${copyId}`] = { 
+          ...clonedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+       };
+    }
+
+    update(ref(db), dbUpdates);
   };
 
   const activeWorkspaceName = workspaces.find(w => w.id === activeWorkspaceId)?.name || 'Loading Project...';
@@ -324,73 +401,33 @@ export default function Builder() {
     const newItems = [];
     const parentId = `element_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
-    if (type === 'navbar') {
-      newItems.push({
-        id: parentId, type: 'navbar', customId: '', parentId: null, text: 'Brand Name',
-        styles: { backgroundColor: '#ffffff', borderBottom: '1px solid #e5e7eb', minHeight: '64px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', padding: '12px 24px', position: 'sticky', top: '0', zIndex: '30' },
-        tabletStyles: {}, mobileStyles: {}, rawHtml: '' 
-      });
-      const linkContainerId = `element_${Date.now()}_links`;
-      newItems.push({
-        id: linkContainerId, type: 'div', parentId: parentId, customId: '', text: '',
-        styles: { display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' },
-        tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-      });
-      ['Home', 'Features', 'Pricing'].forEach((txt, i) => {
-        newItems.push({
-          id: `element_${Date.now()}_link${i}`, type: 'a', parentId: linkContainerId, text: txt, href: '#',
-          styles: { fontSize: '14px', color: '#4b5563', textDecoration: 'none', fontWeight: '500' },
-          tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-        });
-      });
-    } else if (type === 'sidebar') {
-      newItems.push({
-        id: parentId, type: 'sidebar', customId: '', parentId: null, text: '',
-        styles: { backgroundColor: '#ffffff', borderRight: '1px solid #e5e7eb', width: '256px', maxWidth: '100%', height: '100vh', display: 'flex', flexDirection: 'column', padding: '16px', transition: 'all 0.3s ease', overflow: 'hidden' },
-        tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-      });
-      ['Dashboard', 'Messages', 'Settings'].forEach((txt, i) => {
-        newItems.push({
-          id: `element_${Date.now()}_btn${i}`, type: 'button', parentId: parentId, text: txt,
-          styles: { display: 'flex', alignItems: 'center', width: '100%', padding: '12px 16px', marginBottom: '8px', backgroundColor: i === 0 ? '#eef2ff' : 'transparent', color: i === 0 ? '#4f46e5' : '#4b5563', borderRadius: '8px', border: 'none', textAlign: 'left', cursor: 'pointer', fontWeight: '600', fontSize: '14px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-          tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-        });
-      });
-    } else if (type === 'footer') {
-      newItems.push({
-        id: parentId, type: 'footer', parentId: null, text: '© 2026 EmTeeCanvas Workspace.',
-        styles: { backgroundColor: '#ffffff', borderTop: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex', justifyContent: 'center', flexWrap: 'wrap', color: '#9ca3af', fontSize: '14px', marginTop: 'auto' },
-        tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-      });
-    }  else {
-      const isContainer = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer'].includes(type);
-      const isInput = ['input', 'textarea', 'select'].includes(type);
-      const isMedia = ['img', 'video', 'iframe', 'canvas', 'svg'].includes(type);
-      const isImg = type === 'img'; 
-      const isList = ['ul', 'ol', 'table', 'tr'].includes(type);
-      const isListItem = ['li', 'td', 'th'].includes(type);
-      const isLink = type === 'a';
-      const isBtn = type === 'button';
-      const isLabel = type === 'label';
+    const isContainer = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer'].includes(type);
+    const isInput = ['input', 'textarea', 'select'].includes(type);
+    const isMedia = ['img', 'video', 'iframe', 'canvas', 'svg'].includes(type);
+    const isImg = type === 'img'; 
+    const isList = ['ul', 'ol', 'table', 'tr'].includes(type);
+    const isListItem = ['li', 'td', 'th'].includes(type);
+    const isLink = type === 'a';
+    const isBtn = type === 'button';
+    const isLabel = type === 'label';
 
-      newItems.push({
-        id: parentId, type: type, customId: '', parentId: null,  
-        text: (isMedia || isInput || isContainer || isList || isListItem) ? '' : isLink ? 'Click Here' : isBtn ? 'Submit' : isLabel ? 'Label Text' : `${type.toUpperCase()} Text`,
-        src: type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : null,
-        href: isLink ? '#' : null,
-        
-        placeholder: isInput ? 'Enter text here...' : null,
-        inputType: type === 'input' ? 'text' : null,
+    newItems.push({
+      id: parentId, type: type, customId: '', parentId: null,  
+      text: (isMedia || isInput || isContainer || isList || isListItem) ? '' : isLink ? 'Click Here' : isBtn ? 'Submit' : isLabel ? 'Label Text' : `${type.toUpperCase()} Text`,
+      src: type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : null,
+      href: isLink ? '#' : null,
+      
+      placeholder: isInput ? 'Enter text here...' : null,
+      inputType: type === 'input' ? 'text' : null,
 
-        styles: isContainer ? { minHeight: '100px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' } 
-        : isImg ? { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' } 
-        : isInput ? { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' }
-        : isBtn ? { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' }
-        : isList ? { paddingLeft: '20px', marginBottom: '1rem', width: '100%' }
-        : { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' },
-        tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-      });
-    }
+      styles: isContainer ? { minHeight: '100px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' } 
+      : isImg ? { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' } 
+      : isInput ? { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' }
+      : isBtn ? { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' }
+      : isList ? { paddingLeft: '20px', marginBottom: '1rem', width: '100%' }
+      : { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' },
+      tabletStyles: {}, mobileStyles: {}, rawHtml: ''
+    });
 
     setLayoutItems(prev => [...prev, ...newItems]);
   };
@@ -407,7 +444,29 @@ export default function Builder() {
         }
       });
     }
-    setLayoutItems(prev => prev.filter(item => !idsToRemove.has(item.id)));
+
+    setLayoutItems(prev => {
+      const nextItems = prev.filter(item => !idsToRemove.has(item.id));
+      
+      const itemToDelete = prev.find(i => i.id === id);
+      if (itemToDelete && itemToDelete.isRawChild && itemToDelete.parentId) {
+         const parentIndex = nextItems.findIndex(i => i.id === itemToDelete.parentId);
+         if (parentIndex !== -1) {
+           const parent = nextItems[parentIndex];
+           if (parent.rawHtml) {
+             const parser = new DOMParser();
+             const doc = parser.parseFromString(parent.rawHtml, 'text/html');
+             const targetEl = doc.getElementById(itemToDelete.customId);
+             if (targetEl) {
+               targetEl.remove(); 
+               nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML };
+             }
+           }
+         }
+      }
+      return nextItems;
+    });
+
     if (selectedElementId && (idsToRemove.has(selectedElementId) || selectedElementId.startsWith(id))) {
       setSelectedElementId(null);
     }
@@ -452,8 +511,28 @@ export default function Builder() {
         lastDescendantIndex = i;
       }
     }
+
     setLayoutItems(prev => {
       const nextArr = [...prev];
+      
+      if (itemToCopy.isRawChild && itemToCopy.parentId) {
+         const parentIndex = nextArr.findIndex(i => i.id === itemToCopy.parentId);
+         if (parentIndex !== -1) {
+            const parent = nextArr[parentIndex];
+            if (parent.rawHtml) {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(parent.rawHtml, 'text/html');
+              const targetEl = doc.getElementById(itemToCopy.customId);
+              if (targetEl) {
+                 const cloneEl = targetEl.cloneNode(true);
+                 cloneEl.id = newRootCustomId; 
+                 targetEl.parentNode.insertBefore(cloneEl, targetEl.nextSibling); 
+                 nextArr[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML };
+              }
+            }
+         }
+      }
+      
       nextArr.splice(lastDescendantIndex + 1, 0, ...newItems);
       return nextArr;
     });
@@ -488,9 +567,6 @@ export default function Builder() {
       return prev;
     });
   };
-
-  window.handleDuplicateItemExternal = handleDuplicateItem;
-  window.handleRemoveItemExternal = handleRemoveItem;
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -575,6 +651,9 @@ export default function Builder() {
                 customId: customId,
                 parentId: parentDataIdToUpdate || null, 
                 isRawChild: true,
+                text: targetElement.innerHTML || '', 
+                src: targetElement.getAttribute('src') || '',
+                href: targetElement.getAttribute('href') || '',
                 styles: {}, tabletStyles: {}, mobileStyles: {}, rawHtml: ''
               });
             }
@@ -613,13 +692,22 @@ export default function Builder() {
     const body = doc?.body;
     if (!doc || !body) return;
 
+    if (!isInspectMode) {
+      doc.querySelectorAll('*').forEach(el => {
+        if (el?.style && el.id !== 'emtee-element-toolbelt' && !el.closest('#emtee-element-toolbelt')) { 
+          el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = ''; 
+        }
+      });
+      body?.classList?.remove('inspect-mode');
+    } else {
+      body?.classList?.add('inspect-mode');
+    }
+
     const oldControls = doc.getElementById('emtee-element-toolbelt');
     if (oldControls) oldControls.remove();
     const oldOutline = doc.getElementById('emtee-selection-outline');
     if (oldOutline) oldOutline.remove();
-    const oldResizers = doc.getElementById('emtee-element-resizers');
-    if (oldResizers) oldResizers.remove();
-
+    
     doc.querySelectorAll('.selected-element').forEach(el => el?.classList?.remove('selected-element'));
 
     if (selectedElementId) {
@@ -665,8 +753,9 @@ export default function Builder() {
           </button>
         `;
         doc.body.appendChild(toolbelt);
-        toolbelt.querySelector('#toolbelt-dup-action').onclick = (e) => { e.stopPropagation(); window.handleDuplicateItemExternal(selectedElementId); };
-        toolbelt.querySelector('#toolbelt-del-action').onclick = (e) => { e.stopPropagation(); window.handleRemoveItemExternal(selectedElementId); };
+        
+        toolbelt.querySelector('#toolbelt-dup-action').onclick = (e) => { e.stopPropagation(); handleDuplicateItem(selectedElementId); };
+        toolbelt.querySelector('#toolbelt-del-action').onclick = (e) => { e.stopPropagation(); handleRemoveItem(selectedElementId); };
 
         const outline = doc.createElement('div');
         outline.id = 'emtee-selection-outline';
@@ -676,148 +765,61 @@ export default function Builder() {
           pointerEvents: 'none', zIndex: '99997'
         });
         doc.body.appendChild(outline);
-
-        const resizersContainer = doc.createElement('div');
-        resizersContainer.id = 'emtee-element-resizers';
-        doc.body.appendChild(resizersContainer);
-
-        const createAnchorSquare = (cursor) => {
-          const sq = doc.createElement('div');
-          Object.assign(sq.style, {
-            position: 'absolute', width: '8px', height: '8px', backgroundColor: '#0f172a',
-            border: '1.5px solid #6366f1', borderRadius: '2px', cursor: cursor,
-            zIndex: '99998', boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-          });
-          resizersContainer.appendChild(sq);
-          return sq;
-        };
-
-        const squareE = createAnchorSquare('ew-resize');
-        const squareS = createAnchorSquare('ns-resize');
-        const squareSE = createAnchorSquare('nwse-resize');
-
-        const syncAnchors = (w, h) => {
-          squareE.style.top = `${rect.top + scrollY + h / 2 - 4}px`;
-          squareE.style.left = `${rect.left + scrollX + w - 4}px`;
-          squareS.style.top = `${rect.top + scrollY + h - 4}px`;
-          squareS.style.left = `${rect.left + scrollX + w / 2 - 4}px`;
-          squareSE.style.top = `${rect.top + scrollY + h - 4}px`;
-          squareSE.style.left = `${rect.left + scrollX + w - 4}px`;
-        };
-        syncAnchors(rect.width, rect.height);
-
-        let isStretching = false;
-        let activeHandle = '';
-        let startMouseX = 0, startMouseY = 0;
-        let startW = 0, startH = 0;
-
-        const initStretch = (handleType, e) => {
-          e.preventDefault(); e.stopPropagation();
-          isStretching = true;
-          activeHandle = handleType;
-          startMouseX = e.clientX;
-          startMouseY = e.clientY;
-          startW = targetNode.offsetWidth;
-          startH = targetNode.offsetHeight;
-
-          doc.addEventListener('mousemove', processStretch);
-          doc.addEventListener('mouseup', endStretch);
-        };
-
-        const processStretch = (moveEvent) => {
-          if (!isStretching) return;
-          const deltaX = moveEvent.clientX - startMouseX;
-          const deltaY = moveEvent.clientY - startMouseY;
-
-          let currentW = startW;
-          let currentH = startH;
-
-          if (activeHandle === 'E' || activeHandle === 'SE') {
-            currentW = Math.max(25, startW + deltaX);
-            if (targetNode?.style) targetNode.style.width = `${currentW}px`;
-            outline.style.width = `${currentW}px`;
-          }
-          if (activeHandle === 'S' || activeHandle === 'SE') {
-            currentH = Math.max(25, startH + deltaY);
-            if (targetNode?.style) targetNode.style.height = `${currentH}px`;
-            outline.style.height = `${currentH}px`;
-          }
-
-          let newToolbeltTop = rect.top + scrollY - 32;
-          if (newToolbeltTop < scrollY) newToolbeltTop = rect.top + scrollY + 6;
-          
-          toolbelt.style.left = `${Math.max(0, rect.left + scrollX)}px`;
-          toolbelt.style.top = `${newToolbeltTop}px`;
-          
-          syncAnchors(currentW, currentH);
-        };
-
-        const endStretch = () => {
-          if (!isStretching) return;
-          isStretching = false;
-          doc.removeEventListener('mousemove', processStretch);
-          doc.removeEventListener('mouseup', endStretch);
-
-          const finalWidth = targetNode?.style?.width;
-          const finalHeight = targetNode?.style?.height;
-          const iframeWidth = doc.documentElement.clientWidth || iframe.contentWindow.innerWidth;
-          
-          setLayoutItems(prev => prev.map(item => {
-            if (item.id === selectedElementId) {
-              let updatedStyles = { ...item.styles };
-              let updatedTablet = { ...item.tabletStyles };
-              let updatedMobile = { ...item.mobileStyles };
-
-              if (iframeWidth <= 640) {
-                if (finalWidth) updatedMobile.width = finalWidth;
-                if (finalHeight) updatedMobile.height = finalHeight;
-              } else if (iframeWidth <= 1024) {
-                if (finalWidth) updatedTablet.width = finalWidth;
-                if (finalHeight) updatedTablet.height = finalHeight;
-              } else {
-                if (finalWidth) updatedStyles.width = finalWidth;
-                if (finalHeight) updatedStyles.height = finalHeight;
-              }
-
-              return {
-                ...item,
-                styles: updatedStyles,
-                tabletStyles: updatedTablet,
-                mobileStyles: updatedMobile
-              };
-            }
-            return item;
-          }));
-        };
-
-        squareE.onmousedown = (e) => initStretch('E', e);
-        squareS.onmousedown = (e) => initStretch('S', e);
-        squareSE.onmousedown = (e) => initStretch('SE', e);
       }
     }
-  }, [selectedElementId, currentCompiledCode, layoutItems, selectionNonce]);
+  }, [selectedElementId, currentCompiledCode, layoutItems, selectionNonce, isInspectMode]); 
 
   const handleApplyStyleChanges = (id, updates) => {
     const safeParentId = updates.parentId === '' ? null : updates.parentId;
     if (id === safeParentId) return;
 
-    setLayoutItems(prev => prev.map(item => {
-      if (item.id === id) {
-        return { 
-          ...item, 
-          text: updates.text, 
-          styles: updates.styles, 
-          tabletStyles: updates.tabletStyles,
-          mobileStyles: updates.mobileStyles,
-          customId: updates.customId, 
-          parentId: safeParentId,
-          src: updates.src !== undefined ? updates.src : item.src,
-          href: updates.href !== undefined ? updates.href : item.href,
-          rawHtml: updates.rawHtml !== undefined ? updates.rawHtml : item.rawHtml
-        };
+    setLayoutItems(prev => {
+      const oldItem = prev.find(item => item.id === id);
+      
+      let nextItems = prev.map(item => {
+        if (item.id === id) {
+          return { 
+            ...item, 
+            text: updates.text, 
+            styles: updates.styles, 
+            tabletStyles: updates.tabletStyles,
+            mobileStyles: updates.mobileStyles,
+            customId: updates.customId, 
+            parentId: safeParentId,
+            src: updates.src !== undefined ? updates.src : item.src,
+            href: updates.href !== undefined ? updates.href : item.href,
+            rawHtml: updates.rawHtml !== undefined ? updates.rawHtml : item.rawHtml
+          };
+        }
+        return item;
+      });
+
+      if (oldItem && oldItem.isRawChild && oldItem.parentId) {
+        const parentIndex = nextItems.findIndex(i => i.id === oldItem.parentId);
+        if (parentIndex !== -1) {
+          const parent = nextItems[parentIndex];
+          if (parent.rawHtml) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(parent.rawHtml, 'text/html');
+            const targetEl = doc.getElementById(oldItem.customId);
+            
+            if (targetEl) {
+              if (updates.text !== oldItem.text) targetEl.innerHTML = updates.text;
+              if (updates.customId !== oldItem.customId) targetEl.id = updates.customId;
+              if (updates.src !== undefined && updates.src !== oldItem.src) targetEl.setAttribute('src', updates.src);
+              if (updates.href !== undefined && updates.href !== oldItem.href) targetEl.setAttribute('href', updates.href);
+
+              nextItems[parentIndex] = {
+                ...parent,
+                rawHtml: doc.body.innerHTML
+              };
+            }
+          }
+        }
       }
-      return item;
-    }));
+
+      return nextItems;
+    });
   };
 
   if (sharedViewData) {
@@ -852,7 +854,16 @@ export default function Builder() {
         createdAt: Date.now(), updatedAt: Date.now()
       };
       
-      set(ref(db, `users/${user.uid}/workspaces/${newId}`), importedProject).then(() => {
+      const dbUpdates = {};
+      dbUpdates[`users/${user.uid}/workspaces/${newId}`] = importedProject;
+      if (forcePublic) {
+         dbUpdates[`publicWorkspaces/${newId}`] = { 
+            ...importedProject, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+         };
+      }
+      
+      update(ref(db), dbUpdates).then(() => {
         setSharedViewData(null);
         setActiveWorkspaceId(newId);
         navigate(`/builder?u=${userProfile?.username}&ws=${newId}`, { replace: true });

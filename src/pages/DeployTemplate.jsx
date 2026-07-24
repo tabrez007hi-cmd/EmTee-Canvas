@@ -22,9 +22,10 @@ export default function DeployTemplate() {
     const user = auth.currentUser;
     if (!user) { navigate('/'); return; }
 
-    const HARDCODED_DEVS = ["tabrez007hi@gmail.com", "admin@gmail.com"];
-    const isHardcodedDev = user.email && HARDCODED_DEVS.includes(user.email.toLowerCase().trim());
-
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+      : [];
+      
     const profileRef = ref(db, `users/${user.uid}/profile`);
     onValue(profileRef, (snapshot) => {
       if (snapshot.exists()) {

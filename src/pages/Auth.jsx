@@ -146,13 +146,13 @@ export default function Auth() {
           </button>
         </form>
 
-        <button 
+        {/* <button 
           onClick={handleGoogleSignIn} 
           disabled={loading}
           className="w-full mt-6 py-3.5 bg-slate-950 border border-slate-800 text-slate-300 font-bold rounded-xl hover:border-indigo-500 hover:bg-indigo-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-all"
         >
           <i className="bi bi-google text-red-400"></i> Continue with Google
-        </button>
+        </button> */}
 
         <p className="text-center text-xs text-slate-500 mt-8">
           {isLogin ? "Don't have an account? " : "Already have an account? "}

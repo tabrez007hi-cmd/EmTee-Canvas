@@ -5,16 +5,13 @@ import { getStorage } from "firebase/storage";
 
 // Replace these with your actual Firebase project configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyCvlAcHHIENN7mL9K1Q9nZ0Y5YX8JTuUvk",
-  authDomain: "emtee-canvas.firebaseapp.com",
-  projectId: "emtee-canvas",
-  databaseURL: "https://emtee-canvas-default-rtdb.firebaseio.com/",
-  storageBucket: "emtee-canvas.firebasestorage.app",
-  messagingSenderId: "1051255449793",
-  appId: "1:1051255449793:web:ff621342887322db308c40"
-  
-  
-  
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
