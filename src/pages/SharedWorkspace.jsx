@@ -38,7 +38,7 @@ export default function SharedWorkspace() {
         onValue(ref(db, `users/${user.uid}/profile`), (snap) => {
           if (snap.exists()) {
              setUserProfile(snap.val());
-             setUserRole(isHardcodedDev ? 'developer' : (snap.val().role || 'normal'));
+             setUserRole(isHardcodedDev ? 'admin' : (snap.val().role || 'normal'));
           }
         });
 

@@ -50,15 +50,31 @@ export default function AdminDashboard() {
     });
   };
 
-  const handleReject = async (uid) => {
-    if (window.confirm('Reject and delete this request?')) await set(ref(db, `membershipRequests/${uid}`), null);
+  const handleReject = (uid) => {
+    showConfirm({
+      title: 'Reject Request?',
+      message: 'Are you sure you want to reject and delete this membership request?',
+      danger: true,
+      confirmText: 'Reject',
+      onConfirm: async () => {
+        await set(ref(db, `membershipRequests/${uid}`), null);
+        showToast('Request rejected and deleted. 🗑️', 'success');
+      }
+    });
   };
 
-  const handleRevoke = async (uid) => {
-    if (window.confirm('Revoke this user\'s access and downgrade them to Normal?')) {
-      await update(ref(db, `users/${uid}/profile`), { role: 'normal' });
-      await set(ref(db, `roleAssignments/${uid}`), null);
-    }
+  const handleRevoke = (uid) => {
+    showConfirm({
+      title: 'Revoke Access?',
+      message: "Are you sure you want to revoke this user's access and downgrade them to Normal?",
+      danger: true,
+      confirmText: 'Revoke',
+      onConfirm: async () => {
+        await update(ref(db, `users/${uid}/profile`), { role: 'normal' });
+        await set(ref(db, `roleAssignments/${uid}`), null);
+        showToast("User's access has been revoked. 🔽", 'success');
+      }
+    });
   };
 
   const handleNotifyUser = async (user) => {

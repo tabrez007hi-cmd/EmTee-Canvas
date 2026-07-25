@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useUI } from '../contexts/UIContext';
+import RoleBadge from './RoleBadge';
 
 export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, handleClone, navigate }) {
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,12 +68,9 @@ export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, 
                          <i className="bi bi-person-fill text-lg"></i>
                        </div>
                      )}
-                     {/* Creative minimal role badge absolute positioned on the avatar */}
-                     <div className="absolute -bottom-0.5 -right-0.5 bg-slate-900 rounded-full p-[2px]">
-                       {renderRoleBadge(ws.authorRole)}
-                     </div>
                    </div>
-                   <div className="flex flex-col justify-center">
+                   
+                   <div className="flex flex-col justify-center gap-0.5">
                      <span className="text-xs font-bold text-slate-200 truncate max-w-[120px] group-hover:text-indigo-300 transition-colors">@{ws.authorName}</span>
                      <span className="text-[9px] text-slate-500 font-mono tracking-wider">{new Date(ws.updatedAt || ws.createdAt).toLocaleDateString()}</span>
                    </div>

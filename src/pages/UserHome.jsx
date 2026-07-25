@@ -57,7 +57,7 @@ export default function UserHome() {
       if (snapshot.exists()) {
          const data = snapshot.val();
          setUserProfile(data);
-         setUserRole(isHardcodedDev ? 'developer' : (data.role || 'normal'));
+         setUserRole(isHardcodedDev ? 'admin' : (data.role || 'normal'));
       }
     });
 
@@ -268,7 +268,7 @@ export default function UserHome() {
            <div className="mt-8"></div>
            {!isSidebarCollapsed && <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Account Status</div>}
 
-           {userRole !== 'developer' && (
+           {userRole !== 'admin' && (
              <button onClick={() => navigate('/join-membership')} className={`w-full flex items-center py-3 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-colors cursor-pointer shadow-sm ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 gap-3.5'}`} title={isSidebarCollapsed ? "Upgrade Plan" : ""}>
                 <i className="bi bi-star-fill text-[15px] drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]"></i>
                 {!isSidebarCollapsed && <span className="font-bold text-sm truncate">Upgrade Plan</span>}
@@ -283,14 +283,15 @@ export default function UserHome() {
            )}
 
            <div className={`mt-6 ${isSidebarCollapsed ? 'flex justify-center' : 'px-3'}`}>
-              <div className={`flex items-center justify-center font-bold rounded-lg border ${isSidebarCollapsed ? 'w-10 h-10' : 'px-3 py-2.5 gap-2'} ${userRole === 'developer' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : userRole === 'pro' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title={`${userRole.toUpperCase()} PLAN`}>
-                {userRole === 'developer' ? <i className="bi bi-code-square text-[15px]"></i> : userRole === 'pro' ? <i className="bi bi-star-fill text-[15px]"></i> : <i className="bi bi-person text-[15px]"></i>}
+              <div className={`flex items-center justify-center font-bold rounded-lg border ${isSidebarCollapsed ? 'w-10 h-10' : 'px-3 py-2.5 gap-2'} ${userRole === 'admin' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' : userRole === 'developer' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : userRole === 'pro' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title={`${userRole.toUpperCase()} PLAN`}>
+                
+                {userRole === 'admin' ? <i className="bi bi-shield-lock-fill text-[15px]"></i> : userRole === 'developer' ? <i className="bi bi-code-square text-[15px]"></i> : userRole === 'pro' ? <i className="bi bi-star-fill text-[15px]"></i> : <i className="bi bi-person text-[15px]"></i>}
                 {!isSidebarCollapsed && <span className="text-[11px] tracking-widest">{userRole.toUpperCase()} PLAN</span>}
               </div>
            </div>
         </div>
 
-        {userRole === 'developer' && (
+        {(userRole === 'developer' || userRole === 'admin') && (
           <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-950/50">
             <button onClick={() => navigate('/deploy-template')} className={`flex items-center justify-center text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(79,70,229,0.3)] w-full py-3 ${isSidebarCollapsed ? 'px-0' : 'px-3 gap-2'}`} title={isSidebarCollapsed ? "Deploy Template" : ""}>
               <i className="bi bi-cloud-arrow-up-fill text-lg"></i>

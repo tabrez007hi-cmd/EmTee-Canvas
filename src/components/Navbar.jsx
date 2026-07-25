@@ -63,23 +63,11 @@ export default function Navbar({ isCollapsed, userProfile, activeWorkspaceName, 
         </button>
 
         {/* User Profile Button */}
-        <button onClick={onOpenAccount} className="flex items-center gap-2 hover:bg-slate-800 px-2 py-1 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-700">
-          <span className="text-sm font-semibold text-slate-300 hidden lg:block">
-            {userProfile?.username || 'Developer'}
-          </span>
-          
-          {userProfile?.photoURL && !imgError ? (
-            <img 
-              src={userProfile.photoURL} 
-              alt="User" 
-              onError={() => setImgError(true)} 
-              className="h-8 w-8 rounded-full object-cover border border-slate-700" 
-            />
-          ) : (
-            <div className="h-8 w-8 bg-slate-800 rounded-full flex items-center justify-center text-indigo-400 border border-slate-700">
-               <i className="bi bi-person-fill text-lg mt-1"></i>
-            </div>
-          )}
+       <button onClick={onOpenAccount} className="flex items-center gap-2 hover:bg-slate-800 px-2 py-1 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-700">
+          <div className="hidden lg:block max-w-[150px]">
+            
+            {userProfile?.username || 'User'}
+          </div>
         </button>
         
         <button onClick={handleLogout} className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-400 text-xs font-bold rounded-lg transition-colors cursor-pointer">

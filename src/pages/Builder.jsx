@@ -183,7 +183,7 @@ export default function Builder() {
     onValue(profileRef, (snapshot) => {
       if (snapshot.exists()) {
          setUserProfile(snapshot.val());
-         setUserRole(isHardcodedDev ? 'developer' : (snapshot.val().role || 'normal'));
+         setUserRole(isHardcodedDev ? 'admin' : (snapshot.val().role || 'normal'));
       }
     });
 

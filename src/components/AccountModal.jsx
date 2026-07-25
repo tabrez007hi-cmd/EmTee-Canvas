@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
+
 export default function AccountModal({ isOpen, onClose, userProfile }) {
   const [imgError, setImgError] = useState(false); 
 
@@ -53,7 +54,7 @@ export default function AccountModal({ isOpen, onClose, userProfile }) {
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-widest font-bold text-slate-500 block mb-1">Developer Username</label>
-            <div className="text-sm font-bold text-slate-200 px-1">
+            <div className="px-1">
               {displayUsername}
             </div>
           </div>

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+import RoleBadge from './RoleBadge';
+
 export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAddItem, onOpenWorkspaces }) {
   // Section toggle states[cite: 26]
   const [isContainersOpen, setIsContainersOpen] = useState(false);
