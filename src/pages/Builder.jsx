@@ -56,33 +56,78 @@ export default function Builder() {
     localStorage.setItem('emtee_autosave_preference', JSON.stringify(autoSave));
   }, [autoSave]);
 
+  // ✨ FIX: Advanced Smart Compiler! Updates existing layout items instead of destroying the DOM Tree.
   const handleApplyCodeChanges = (newHtml) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(newHtml, 'text/html');
+
+    // 1. Extract all CSS styles
+    let extractedStyles = '';
+    doc.querySelectorAll('style').forEach(styleTag => {
+      extractedStyles += styleTag.innerHTML + '\n';
+    });
     
-    const mainEl = doc.querySelector('main');
-    let newContentHtml = mainEl ? mainEl.innerHTML : doc.body.innerHTML;
-    
-    const preservedItems = layoutItems.filter(item => ['navbar', 'sidebar', 'footer'].includes(item.type));
-    const rootNodeId = `element_${Date.now()}_root`;
-    
-    const newLayout = [
-      ...preservedItems,
-      {
-        id: rootNodeId,
-        type: 'div',
-        customId: `custom-code-${Math.random().toString(36).substr(2, 5)}`,
-        parentId: null,
-        text: '',
-        styles: { width: '100%', minHeight: '100%', display: 'flex', flexDirection: 'column' },
-        tabletStyles: {}, mobileStyles: {},
-        rawHtml: newContentHtml.trim(),
-        isRawChild: false
+    // Scrub internal builder CSS to keep output pure
+    const cleanedStyles = extractedStyles
+      .replace(/\[data-id\]\s*\{[^}]+\}/g, '')
+      .replace(/\.selected-element\s*\{[^}]+\}/g, '')
+      .replace(/img\[data-id\]\s*\{[^}]+\}/g, '')
+      .replace(/::-webkit-scrollbar[^{]*\{[^}]+\}/g, '')
+      .replace(/\*\s*\{[^}]+\}/g, '')
+      .replace(/html,\s*body\s*\{[^}]+\}/g, '')
+      .trim();
+
+    setLayoutItems(prev => {
+      let nextItems = JSON.parse(JSON.stringify(prev)); // Deep clone to maintain state safety
+
+      // 2. Save CSS safely in a hidden layout object so it doesn't get lost
+      let globalCssItem = nextItems.find(i => i.id === 'global_custom_css');
+      if (cleanedStyles) {
+        if (globalCssItem) {
+          globalCssItem.rawHtml = `<style>\n${cleanedStyles}\n</style>`;
+        } else {
+          nextItems.push({
+            id: 'global_custom_css', type: 'div', parentId: null, customId: 'emtee_global_css',
+            styles: { display: 'none' }, tabletStyles: {}, mobileStyles: {},
+            rawHtml: `<style>\n${cleanedStyles}\n</style>`, isRawChild: false
+          });
+        }
+      } else if (globalCssItem) {
+        globalCssItem.rawHtml = '';
       }
-    ];
-    
-    setLayoutItems(newLayout);
-    alert("Code modifications applied successfully! DOM Tree updated. 🚀");
+
+      // 3. Scan DOM and intelligently update existing elements
+      nextItems.forEach(item => {
+        if (item.id === 'global_custom_css') return;
+
+        if (item.isRawChild) {
+          const el = doc.getElementById(item.customId);
+          if (el) item.rawHtml = el.outerHTML;
+        } else {
+          const el = doc.querySelector(`[data-id="${item.id}"]`);
+          if (el) {
+            // Sync Attributes
+            if (item.type === 'img' && el.getAttribute('src')) item.src = el.getAttribute('src');
+            if (item.type === 'a' && el.getAttribute('href')) item.href = el.getAttribute('href');
+            if (el.getAttribute('id')) item.customId = el.getAttribute('id');
+
+            // Sync Text Content securely without destroying child layout references
+            const containerTags = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer', 'ul', 'ol', 'table', 'tbody', 'thead', 'tr'];
+            if (!containerTags.includes(item.type)) {
+              let directText = '';
+              el.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) directText += node.textContent;
+              });
+              if (directText.trim() !== '') item.text = directText.trim();
+            }
+          }
+        }
+      });
+
+      return nextItems;
+    });
+
+    alert("Code modifications applied successfully! DOM Tree and CSS perfectly preserved. 🚀");
   };
 
   useEffect(() => {
@@ -96,7 +141,6 @@ export default function Builder() {
       return;
     }
 
-    // ✨ UPDATED: The shared viewer now checks the 'publicWorkspaces' node first if available
     if (urlOwner && urlOwner !== user?.uid && urlParamId) {
       const sharedRef = ref(db, `publicWorkspaces/${urlParamId}`);
       get(sharedRef).then(snap => {
@@ -104,7 +148,6 @@ export default function Builder() {
           setSharedViewData({ owner: urlOwner, ...snap.val() });
           setIsDataLoaded(true); 
         } else {
-          // Fallback to checking their private directory if they sent a direct share link
           const privateRef = ref(db, `users/${urlOwner}/workspaces/${urlParamId}`);
           get(privateRef).then(privSnap => {
              if (privSnap.exists()) {
@@ -130,9 +173,7 @@ export default function Builder() {
     const user = auth.currentUser;
     if (!user) return; 
 
-    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
-      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
-      : [];
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) : [];
     const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
     const profileRef = ref(db, `users/${user.uid}/profile`);
@@ -198,7 +239,6 @@ export default function Builder() {
     }
   }, [activeWorkspaceId, workspaces, sharedViewData]);
 
-  // ✨ SECURE AUTO-SAVE ENGINE: Pushes to both isolated databases simultaneously
   useEffect(() => {
     if (isDataLoaded && auth.currentUser && activeWorkspaceId && autoSave && loadedWorkspaceId === activeWorkspaceId && !sharedViewData) {
       const currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
@@ -234,7 +274,6 @@ export default function Builder() {
     }
   }, [layoutItems, isDataLoaded, activeWorkspaceId, autoSave, workspaces, loadedWorkspaceId, sharedViewData]);
 
-  // ✨ SECURE MANUAL SAVE
   const handleSaveWorkspaceExplicitly = () => {
     const user = auth.currentUser;
     if (!user || !activeWorkspaceId) return;
@@ -297,7 +336,6 @@ export default function Builder() {
     });
   };
 
-  // ✨ SECURE DELETION: Removes from both tables to avoid ghost projects
   const handleDeleteWorkspace = (id) => {
     if (workspaces.length <= 1) return;
     if (!window.confirm('Are you absolutely sure you want to drop this workspace project permanently? 🚨')) return;
@@ -339,7 +377,7 @@ export default function Builder() {
             authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
          };
       } else {
-         dbUpdates[`publicWorkspaces/${newId}`] = null; // Remove from explore feed if made private
+         dbUpdates[`publicWorkspaces/${newId}`] = null; 
       }
 
       update(ref(db), dbUpdates).then(() => {
@@ -920,7 +958,7 @@ export default function Builder() {
     <div className="min-h-screen bg-slate-950 flex">
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} layoutItems={layoutItems} onAddItem={handleAddItem} onOpenWorkspaces={() => setIsWorkspacesModalOpen(true)} />
       
-      <div className="flex flex-col flex-1 transition-all duration-300" style={{ paddingLeft: isCollapsed ? '4rem' : '16rem' }}>
+      <div className="flex flex-col flex-1 transition-all duration-300" style={{ paddingLeft: isCollapsed ? '4.5rem' : '18rem' }}>
         <Navbar 
           isCollapsed={isCollapsed} userProfile={userProfile} 
           activeWorkspaceName={activeWorkspaceName} onSaveWorkspace={handleSaveWorkspaceExplicitly} 
@@ -958,7 +996,7 @@ export default function Builder() {
       />
 
       <WorkspaceSettingsModal isOpen={!!workspaceSettingsTarget} onClose={() => setWorkspaceSettingsTarget(null)} workspace={workspaceSettingsTarget} onSave={handleSaveWorkspaceSettings} userRole={userRole} workspaces={workspaces} />
-      <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} code={currentCompiledCode} projectName={activeWorkspaceName} userRole={userRole} />
+      <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} code={generateCanvasHtml(layoutItems, true)} projectName={activeWorkspaceName} userRole={userRole} />
     </div>
   );
 }

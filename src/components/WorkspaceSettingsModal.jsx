@@ -16,13 +16,14 @@ export default function WorkspaceSettingsModal({ isOpen, onClose, workspace, onS
   const [swapTargetId, setSwapTargetId] = useState('');
 
   // 🧠 Smart Limit Engine
-  const privateLimit = userRole === 'normal' ? 3 : userRole === 'pro' ? 10 : Infinity;
+  const privateLimit = userRole === 'normal' ? 1 : userRole === 'pro' ? 10 : Infinity;
   const otherPrivateWorkspaces = workspaces.filter(w => !w.isPublic && w.id !== workspace?.id);
   const isOverPrivateLimit = otherPrivateWorkspaces.length >= privateLimit;
   const requireSwap = !isPublic && isOverPrivateLimit && privateLimit > 0;
 
+  // ✨ NEW: Dynamic URL Sync Engine
   useEffect(() => {
-    if (workspace) {
+    if (workspace && isOpen) {
       setName(workspace.name || '');
       setIsPublic(workspace.isPublic || false);
       setIsShareable(workspace.isShareable || false);
@@ -32,8 +33,26 @@ export default function WorkspaceSettingsModal({ isOpen, onClose, workspace, onS
       if (otherPrivateWorkspaces.length > 0) {
         setSwapTargetId(otherPrivateWorkspaces[0].id);
       }
+
+      // Append custom setting slug to the browser URL silently
+      const slug = `[${workspace.name.replace(/\s+/g, '_')}_setting]`;
+      if (!window.location.search.includes(slug)) {
+        const separator = window.location.search ? '&' : '?';
+        window.history.pushState({}, '', `${window.location.pathname}${window.location.search}${separator}${slug}`);
+      }
     }
   }, [workspace, isOpen]);
+
+  // Clean URL when closing modal
+  const handleClose = () => {
+    if (workspace) {
+      const slug = `[${workspace.name.replace(/\s+/g, '_')}_setting]`;
+      let search = window.location.search;
+      search = search.replace(`&${slug}`, '').replace(`?${slug}&`, '?').replace(`?${slug}`, '');
+      window.history.pushState({}, '', `${window.location.pathname}${search}`);
+    }
+    onClose();
+  };
 
   if (!isOpen || !workspace) return null;
 
@@ -48,7 +67,7 @@ export default function WorkspaceSettingsModal({ isOpen, onClose, workspace, onS
       { name: name.trim(), isPublic, isShareable, allowCodeView, allowDomView },
       requireSwap ? swapTargetId : null 
     );
-    onClose();
+    handleClose();
   };
 
   const createdDate = workspace.createdAt ? new Date(workspace.createdAt).toLocaleString() : 'Legacy Project';
@@ -59,49 +78,70 @@ export default function WorkspaceSettingsModal({ isOpen, onClose, workspace, onS
         <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-bl-full pointer-events-none z-0"></div>
 
         <div className="bg-slate-950 px-6 py-5 border-b border-slate-800 flex items-center justify-between shrink-0 relative z-10">
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            <i className="bi bi-sliders text-indigo-500 drop-shadow-[0_0_8px_rgba(79,70,229,0.8)]"></i> Workspace Settings
+          <h2 className="text-lg font-bold text-white flex items-center gap-2 truncate pr-4">
+            <i className="bi bi-sliders text-indigo-500 drop-shadow-[0_0_8px_rgba(79,70,229,0.8)]"></i> 
+            Settings: {name || 'Workspace'}
           </h2>
-          <button onClick={onClose} className="text-slate-500 hover:text-white bg-slate-800 border border-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer">
+          <button onClick={handleClose} className="text-slate-500 hover:text-white bg-slate-800 border border-slate-700 w-8 h-8 rounded-full flex items-center justify-center transition-colors cursor-pointer shrink-0">
             <i className="bi bi-x-lg text-sm"></i>
           </button>
         </div>
         
-        <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 relative z-10 bg-slate-900">
+        <div className="p-6 space-y-8 overflow-y-auto custom-scrollbar flex-1 relative z-10 bg-slate-900">
           <div className="space-y-4">
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Project Name 🏷️</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Project Name 🏷️</label>
               <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm font-bold text-white focus:outline-none focus:border-indigo-500 transition-colors" />
             </div>
             <div>
-              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-1.5">Creation Timeline 📅</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Creation Timeline 📅</label>
               <div className="text-xs text-slate-400 bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 font-mono shadow-inner flex items-center gap-2">
                 <i className="bi bi-calendar-event text-slate-500"></i> {createdDate}
               </div>
             </div>
           </div>
 
-          <hr className="border-slate-800" />
-
           <div className="space-y-4">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Visibility & Sharing 🚀</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest block">Access & Privacy 🚀</label>
             
             {/* 🌐 GLOBAL EXPLORE TOGGLE */}
-            <div className={`p-4 border rounded-2xl transition-colors ${!isPublic ? 'bg-slate-950 border-slate-800 shadow-inner' : 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'}`}>
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <div className="text-sm font-bold text-white flex items-center gap-2">
+            <div className={`p-5 border rounded-2xl transition-all duration-300 ${!isPublic ? 'bg-slate-950 border-slate-800 shadow-inner' : 'bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]'}`}>
+              <div className="flex items-start justify-between mb-2">
+                <div className="pr-4">
+                  <div className="text-sm font-extrabold text-white flex items-center gap-2 mb-1.5">
                     {isPublic ? <i className="bi bi-globe-americas text-emerald-400 drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]"></i> : <i className="bi bi-lock-fill text-slate-500"></i>}
-                    Global Explore
+                    Global Community Explore
                   </div>
-                  <div className="text-[10px] text-slate-400 mt-1">Show in the community Explore tab.</div>
+                  <div className="text-[11px] text-slate-400 leading-relaxed">
+                    Publish this project to the public Explore feed. Enabling this makes your design visible to the community and allows you to expose your underlying DOM Tree and Source Code settings.
+                  </div>
                 </div>
                 <button 
                   onClick={() => setIsPublic(!isPublic)} 
-                  className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${isPublic ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}
+                  className={`w-11 h-6 shrink-0 flex items-center rounded-full p-1 transition-colors cursor-pointer ${isPublic ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-slate-700'}`}
                 >
                   <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isPublic ? 'translate-x-5' : 'translate-x-0'}`}></div>
                 </button>
+              </div>
+
+              {/* ✨ FIX: DOM & Code toggles strictly locked behind 'isPublic' state */}
+              <div className={`transition-all duration-300 overflow-hidden ${isPublic ? 'max-h-40 opacity-100 mt-4 pt-4 border-t border-emerald-500/20' : 'max-h-0 opacity-0 pointer-events-none'}`}>
+                <div className="pl-3 border-l-2 border-emerald-500/50 space-y-4 py-1">
+                  <div className="flex items-center justify-between">
+                    <div className="pr-4">
+                      <div className="text-xs font-bold text-slate-200 mb-0.5">Expose DOM Tree</div>
+                      <div className="text-[9px] text-slate-400">Allow users to inspect your HTML element structure.</div>
+                    </div>
+                    <button onClick={() => setAllowDomView(!allowDomView)} className={`w-9 h-5 shrink-0 flex items-center rounded-full p-1 transition-colors cursor-pointer ${allowDomView ? 'bg-emerald-500' : 'bg-slate-700'}`}><div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${allowDomView ? 'translate-x-4' : 'translate-x-0'}`}></div></button>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="pr-4">
+                      <div className="text-xs font-bold text-slate-200 mb-0.5">Expose Source Code</div>
+                      <div className="text-[9px] text-slate-400">Allow users to view your compiled Tailwind CSS block.</div>
+                    </div>
+                    <button onClick={() => setAllowCodeView(!allowCodeView)} className={`w-9 h-5 shrink-0 flex items-center rounded-full p-1 transition-colors cursor-pointer ${allowCodeView ? 'bg-emerald-500' : 'bg-slate-700'}`}><div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${allowCodeView ? 'translate-x-4' : 'translate-x-0'}`}></div></button>
+                  </div>
+                </div>
               </div>
 
               {/* ⚠️ SWAP UI TRIGGER */}
@@ -127,33 +167,24 @@ export default function WorkspaceSettingsModal({ isOpen, onClose, workspace, onS
             </div>
 
             {/* 🔗 DIRECT LINK SHARING TOGGLE */}
-            <div className={`flex items-center justify-between p-4 border rounded-2xl transition-colors ${isShareable ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-slate-950 border-slate-800 shadow-inner'}`}>
-              <div>
-                <div className="text-sm font-bold text-white flex items-center gap-2">
-                  <i className={`bi bi-link-45deg text-lg ${isShareable ? 'text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.8)]' : 'text-slate-500'}`}></i> Direct Link Sharing
+            <div className={`flex items-start justify-between p-5 border rounded-2xl transition-all duration-300 ${isShareable ? 'bg-blue-500/10 border-blue-500/30 shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'bg-slate-950 border-slate-800 shadow-inner'}`}>
+              <div className="pr-4">
+                <div className="text-sm font-extrabold text-white flex items-center gap-2 mb-1.5">
+                  <i className={`bi bi-link-45deg text-xl leading-none ${isShareable ? 'text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.8)]' : 'text-slate-500'}`}></i> 
+                  Direct Share Link
                 </div>
-                <div className="text-[10px] text-slate-400 mt-1">Allow others to import via your URL.</div>
+                <div className="text-[11px] text-slate-400 leading-relaxed">
+                  Generate a private viewing link. When enabled, anyone with the exact URL can view your canvas. When disabled, the link becomes dead and your workspace is strictly locked to you.
+                </div>
               </div>
               <button 
                 onClick={() => setIsShareable(!isShareable)} 
-                className={`w-11 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${isShareable ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-slate-700'}`}
+                className={`w-11 h-6 shrink-0 flex items-center rounded-full p-1 transition-colors cursor-pointer ${isShareable ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]' : 'bg-slate-700'}`}
               >
                 <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isShareable ? 'translate-x-5' : 'translate-x-0'}`}></div>
               </button>
             </div>
-
-            <div className={`transition-all duration-300 overflow-hidden ${isPublic || isShareable ? 'max-h-40 opacity-100' : 'max-h-0 opacity-0 pointer-events-none'}`}>
-              <div className="pl-4 border-l-2 border-indigo-500/30 space-y-4 mt-2 py-1">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-slate-300">Show DOM Tree</div>
-                  <button onClick={() => setAllowDomView(!allowDomView)} className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors cursor-pointer ${allowDomView ? 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.5)]' : 'bg-slate-700'}`}><div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${allowDomView ? 'translate-x-4' : 'translate-x-0'}`}></div></button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-slate-300">Show Source Code</div>
-                  <button onClick={() => setAllowCodeView(!allowCodeView)} className={`w-9 h-5 flex items-center rounded-full p-1 transition-colors cursor-pointer ${allowCodeView ? 'bg-indigo-500 shadow-[0_0_8px_rgba(79,70,229,0.5)]' : 'bg-slate-700'}`}><div className={`bg-white w-3 h-3 rounded-full shadow-md transform transition-transform ${allowCodeView ? 'translate-x-4' : 'translate-x-0'}`}></div></button>
-                </div>
-              </div>
-            </div>
+            
           </div>
         </div>
 
