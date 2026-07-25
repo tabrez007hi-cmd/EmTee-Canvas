@@ -160,7 +160,6 @@ export default function InspectorPanel({
   };
 
   return (
-    // ✨ FIX: overflow-x-hidden prevents horizontal scrolling inside the panel
     <div className="fixed bottom-6 right-6 z-50 w-[340px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-fade-in text-slate-200">
       
       <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0">
@@ -287,6 +286,7 @@ export default function InspectorPanel({
                 </div>
 
                 <div className="space-y-6">
+                  {/* Content Attributes */}
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Content</h4>
                     {!isMedia && (!isContainer || isRawVirtualNode) && (
@@ -315,6 +315,7 @@ export default function InspectorPanel({
 
                   <hr className="border-slate-800" />
 
+                  {/* Size & Space */}
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Size & Space</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -334,11 +335,18 @@ export default function InspectorPanel({
                         <label className="text-[10px] text-slate-400 mb-1 block font-bold">Margin</label>
                         <input type="text" value={getStyleVal('margin')} onChange={(e) => handleStyleFieldChange('margin', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-emerald-400 rounded-lg px-3 py-2 text-xs font-mono focus:border-indigo-500 outline-none" placeholder="0 auto" />
                       </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Overflow</label>
+                        <select value={getStyleVal('overflow')} onChange={(e) => handleStyleFieldChange('overflow', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-emerald-300 rounded-lg px-3 py-2 text-xs font-bold focus:border-indigo-500 outline-none cursor-pointer">
+                          <option value="">Inherit</option><option value="visible">Visible</option><option value="hidden">Hidden</option><option value="scroll">Scroll</option><option value="auto">Auto</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
 
                   <hr className="border-slate-800" />
 
+                  {/* Display Engine */}
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Display</h4>
                     <div>
@@ -386,6 +394,7 @@ export default function InspectorPanel({
 
                   <hr className="border-slate-800" />
 
+                  {/* Positioning */}
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Positioning</h4>
                     <div className="grid grid-cols-2 gap-3">
@@ -404,6 +413,7 @@ export default function InspectorPanel({
 
                   <hr className="border-slate-800" />
 
+                  {/* Typography */}
                   {isTextElement && (
                     <div className="space-y-3">
                       <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Typography</h4>
@@ -413,10 +423,38 @@ export default function InspectorPanel({
                           <input type="text" value={getStyleVal('fontSize')} onChange={(e) => handleStyleFieldChange('fontSize', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="16px" />
                         </div>
                         <div>
+                          <label className="text-[10px] text-slate-400 mb-1 block font-bold">Line Height</label>
+                          <input type="text" value={getStyleVal('lineHeight')} onChange={(e) => handleStyleFieldChange('lineHeight', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="1.5" />
+                        </div>
+                        <div className="col-span-2">
                           <label className="text-[10px] text-slate-400 mb-1 block font-bold">Text Color</label>
                           <div className="flex items-center gap-2">
                              <input type="color" value={getStyleVal('color') || '#ffffff'} onChange={(e) => handleStyleFieldChange('color', e.target.value)} className="w-8 h-8 rounded bg-slate-950 border border-slate-700 p-0.5 cursor-pointer shrink-0" />
                              <input type="text" value={getStyleVal('color')} onChange={(e) => handleStyleFieldChange('color', e.target.value)} className="flex-1 min-w-0 bg-slate-950 border border-slate-700 text-pink-400 rounded-lg px-2 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="inherit" />
+                          </div>
+                        </div>
+                        <div className="col-span-2 grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Weight</label>
+                            <select value={getStyleVal('fontWeight')} onChange={(e) => handleStyleFieldChange('fontWeight', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-300 rounded-lg px-2 py-2 text-xs font-bold focus:border-indigo-500 outline-none cursor-pointer">
+                              <option value="">Inherit</option><option value="normal">Normal</option><option value="medium">Medium</option><option value="bold">Bold</option><option value="900">Black</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Align</label>
+                            <select value={getStyleVal('textAlign')} onChange={(e) => handleStyleFieldChange('textAlign', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-300 rounded-lg px-2 py-2 text-xs font-bold focus:border-indigo-500 outline-none cursor-pointer">
+                              <option value="">Inherit</option><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option><option value="justify">Justify</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Transform</label>
+                            <select value={getStyleVal('textTransform')} onChange={(e) => handleStyleFieldChange('textTransform', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-300 rounded-lg px-2 py-2 text-xs font-bold focus:border-indigo-500 outline-none cursor-pointer">
+                              <option value="">None</option><option value="uppercase">UPPERCASE</option><option value="lowercase">lowercase</option><option value="capitalize">Capitalize</option>
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] text-slate-400 mb-1 block font-bold">Spacing</label>
+                            <input type="text" value={getStyleVal('letterSpacing')} onChange={(e) => handleStyleFieldChange('letterSpacing', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-pink-400 rounded-lg px-2 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="normal" />
                           </div>
                         </div>
                       </div>
@@ -425,24 +463,45 @@ export default function InspectorPanel({
 
                   {isTextElement && <hr className="border-slate-800" />}
 
+                  {/* Visual Effects */}
                   <div className="space-y-3">
                     <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Visual Effects</h4>
                     <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Background</label>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Background Color</label>
                         <div className="flex items-center gap-2">
                           <input type="color" value={getStyleVal('backgroundColor') || '#000000'} onChange={(e) => handleStyleFieldChange('backgroundColor', e.target.value)} className="w-8 h-8 rounded bg-slate-950 border border-slate-700 p-0.5 cursor-pointer shrink-0" />
                           <input type="text" value={getStyleVal('backgroundColor')} onChange={(e) => handleStyleFieldChange('backgroundColor', e.target.value)} className="flex-1 min-w-0 bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-2 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="transparent" />
                         </div>
                       </div>
-                      <div>
-                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Border</label>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Border Details</label>
                         <input type="text" value={getStyleVal('border')} onChange={(e) => handleStyleFieldChange('border', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="1px solid #000" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Border Radius</label>
+                        <input type="text" value={getStyleVal('borderRadius')} onChange={(e) => handleStyleFieldChange('borderRadius', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="8px, 50%" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Opacity</label>
+                        <input type="text" value={getStyleVal('opacity')} onChange={(e) => handleStyleFieldChange('opacity', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="1 (0 to 1)" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Box Shadow</label>
+                        <input type="text" value={getStyleVal('boxShadow')} onChange={(e) => handleStyleFieldChange('boxShadow', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="0 4px 6px rgba(0,0,0,0.1)" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Filters</label>
+                        <input type="text" value={getStyleVal('filter')} onChange={(e) => handleStyleFieldChange('filter', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="blur(4px)" />
+                      </div>
+                      <div>
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Transforms</label>
+                        <input type="text" value={getStyleVal('transform')} onChange={(e) => handleStyleFieldChange('transform', e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="scale(1.1)" />
                       </div>
                     </div>
                     {isContainer && (
-                      <div>
-                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Image URL (src)</label>
+                      <div className="pt-2">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Background Image URL</label>
                         <input type="text" value={getStyleVal('backgroundImage')} onChange={(e) => handleStyleFieldChange('backgroundImage', e.target.value.includes('url') ? e.target.value : `url('${e.target.value}')`)} className="w-full bg-slate-950 border border-slate-700 text-amber-400 rounded-lg px-3 py-2 text-xs font-mono outline-none focus:border-indigo-500" placeholder="url('https://...')" />
                       </div>
                     )}

@@ -43,13 +43,13 @@ export default function UserHome() {
   const [pendingClone, setPendingClone] = useState(null);
   const [workspaceToReplace, setWorkspaceToReplace] = useState('');
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) { navigate('/authentication'); return; }
 
-    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
-      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
-      : [];
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) : [];
     const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
     const profileRef = ref(db, `users/${user.uid}/profile`);
@@ -73,7 +73,6 @@ export default function UserHome() {
       else setGlobalTemplates([]);
     });
 
-    // ✨ SECURE EXPLORE TAB: Fetching strictly from the isolated public node
     onValue(ref(db, 'publicWorkspaces'), (snapshot) => {
       if (snapshot.exists()) {
         const publicItems = Object.values(snapshot.val());
@@ -108,7 +107,6 @@ export default function UserHome() {
       executeCloneSave(layoutsStr, defaultName);
   };
 
-  // ✨ SECURE DUAL-SAVE ENGINE: Pushes data to the user folder AND the public folder if public
   const executeCloneSave = (layoutsStr, defaultName, replaceId = null) => {
     const user = auth.currentUser;
     const newId = generateProjectSlug(defaultName);
@@ -125,7 +123,7 @@ export default function UserHome() {
     const dbUpdates = {};
     if (replaceId) {
        dbUpdates[`users/${user.uid}/workspaces/${replaceId}`] = null;
-       dbUpdates[`publicWorkspaces/${replaceId}`] = null; // Clean up the public node too
+       dbUpdates[`publicWorkspaces/${replaceId}`] = null; 
     }
     
     dbUpdates[`users/${user.uid}/workspaces/${newId}`] = newWS;
@@ -142,7 +140,6 @@ export default function UserHome() {
     });
   };
 
-  // ✨ SECURE LIKES: Syncing likes across both nodes
   const handleToggleLike = async (e, workspaceId, authorId, isLikedByMe) => {
     e.stopPropagation();
     const user = auth.currentUser;
@@ -179,17 +176,16 @@ export default function UserHome() {
     
     if (id !== newId) {
       dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
-      dbUpdates[`publicWorkspaces/${id}`] = null; // Purge old public ID
+      dbUpdates[`publicWorkspaces/${id}`] = null; 
     }
 
-    // Sync visibility strictly
     if (updatedWS.isPublic) {
       dbUpdates[`publicWorkspaces/${newId}`] = { 
         ...updatedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
         authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
       };
     } else {
-      dbUpdates[`publicWorkspaces/${newId}`] = null; // Yank it from public view if made private
+      dbUpdates[`publicWorkspaces/${newId}`] = null; 
     }
 
     if (swapId) {
@@ -220,7 +216,7 @@ export default function UserHome() {
   if (loading) {
     return (
       <div className="h-screen w-full bg-slate-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
+        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
       </div>
     );
   }
@@ -228,56 +224,79 @@ export default function UserHome() {
   return (
     <div className="h-screen w-full bg-slate-950 flex overflow-hidden font-sans text-slate-200">
       
-      {/* Navigation Sidebar */}
-      <aside className="w-64 h-full bg-slate-900 border-r border-slate-800 hidden md:flex flex-col z-20 shrink-0">
-        <div className="h-16 flex items-center px-6 border-b border-slate-800 shrink-0">
-           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)] mr-3"><i className="bi bi-lightning-charge-fill text-white"></i></div>
-           <span className="font-bold text-white tracking-tight text-lg">EmTeeCanvas</span>
+      {/* ✨ FIX: Increased z-[60] to prevent the button from hiding under the top navigation */}
+      <aside className={`relative h-full bg-slate-900 border-r border-slate-800 hidden md:flex flex-col z-[60] shrink-0 transition-all duration-300 ${isSidebarCollapsed ? 'w-[72px]' : 'w-72'}`}>
+        
+        {/* Collapse Toggle Button */}
+        <button 
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+          className="absolute top-5 -right-3.5 z-50 bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-indigo-500 rounded-full w-7 h-7 flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)] cursor-pointer transition-all"
+        >
+          <i className={`bi ${isSidebarCollapsed ? 'bi-chevron-right' : 'bi-chevron-left'} text-xs font-bold`}></i>
+        </button>
+
+        <div className={`h-16 flex items-center border-b border-slate-800 shrink-0 transition-all ${isSidebarCollapsed ? 'justify-center px-0' : 'px-6 gap-3'}`}>
+           <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)] shrink-0">
+             <i className="bi bi-lightning-charge-fill text-white text-lg"></i>
+           </div>
+           {!isSidebarCollapsed && <span className="font-extrabold text-white tracking-tight text-lg drop-shadow-md truncate">EmTeeCanvas</span>}
         </div>
         
-        <div className="p-4 space-y-1.5 flex-1 overflow-y-auto custom-scrollbar">
-           <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3 px-3">Main Menu</div>
-           <button onClick={() => navigate('/user/home')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer border ${activeTab === 'home' ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white border-transparent'}`}>
-              <i className="bi bi-grid-1x2-fill"></i> My Workspaces
+        <div className="p-3 space-y-2 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar mt-2">
+           {!isSidebarCollapsed && <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Main Menu</div>}
+           
+           <button onClick={() => navigate('/user/home')} className={`w-full flex items-center py-3 rounded-xl transition-colors cursor-pointer border ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 gap-3.5'} ${activeTab === 'home' ? 'text-indigo-300 bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]' : 'text-slate-400 hover:bg-slate-800/80 hover:text-white border-transparent'}`} title={isSidebarCollapsed ? "My Workspaces" : ""}>
+              <i className="bi bi-grid-1x2-fill text-[15px]"></i>
+              {!isSidebarCollapsed && <span className="font-bold text-sm">My Workspaces</span>}
            </button>
-           <button onClick={() => navigate('/user/templates')} className={`w-full flex items-center justify-between px-3 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer border ${activeTab === 'templates' ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white border-transparent'}`}>
-              <div className="flex items-center gap-3"><i className="bi bi-layout-wtf"></i> Browse Templates</div>
+
+           <button onClick={() => navigate('/user/templates')} className={`w-full flex items-center py-3 rounded-xl transition-colors cursor-pointer border ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 gap-3.5'} ${activeTab === 'templates' ? 'text-indigo-300 bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]' : 'text-slate-400 hover:bg-slate-800/80 hover:text-white border-transparent'}`} title={isSidebarCollapsed ? "Browse Templates" : ""}>
+              <i className="bi bi-layout-wtf text-[15px]"></i>
+              {!isSidebarCollapsed && <span className="font-bold text-sm truncate">Browse Templates</span>}
            </button>
-           <button onClick={() => navigate('/user/explore')} className={`w-full flex items-center gap-3 px-3 py-2 text-sm font-bold rounded-lg transition-colors cursor-pointer border ${activeTab === 'explore' ? 'text-indigo-400 bg-indigo-500/10 border-indigo-500/30' : 'text-slate-400 hover:bg-slate-800 hover:text-white border-transparent'}`}>
-              <i className="bi bi-compass"></i> Explore Works
+
+           <button onClick={() => navigate('/user/explore')} className={`w-full flex items-center py-3 rounded-xl transition-colors cursor-pointer border ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 gap-3.5'} ${activeTab === 'explore' ? 'text-indigo-300 bg-indigo-500/10 border-indigo-500/30 shadow-[0_0_10px_rgba(79,70,229,0.1)]' : 'text-slate-400 hover:bg-slate-800/80 hover:text-white border-transparent'}`} title={isSidebarCollapsed ? "Explore Works" : ""}>
+              <i className="bi bi-compass text-[15px]"></i>
+              {!isSidebarCollapsed && <span className="font-bold text-sm truncate">Explore Works</span>}
            </button>
            
+           <div className="mt-8"></div>
+           {!isSidebarCollapsed && <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-3">Account Status</div>}
+
            {userRole !== 'developer' && (
-             <button onClick={() => navigate('/join-membership')} className="w-full flex items-center gap-3 px-3 py-2 mt-4 text-sm font-bold text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-lg transition-colors cursor-pointer shadow-sm">
-                <i className="bi bi-star-fill"></i> Upgrade Plan
+             <button onClick={() => navigate('/join-membership')} className={`w-full flex items-center py-3 text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded-xl transition-colors cursor-pointer shadow-sm ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 gap-3.5'}`} title={isSidebarCollapsed ? "Upgrade Plan" : ""}>
+                <i className="bi bi-star-fill text-[15px] drop-shadow-[0_0_5px_rgba(251,191,36,0.8)]"></i>
+                {!isSidebarCollapsed && <span className="font-bold text-sm truncate">Upgrade Plan</span>}
              </button>
            )}
 
            {auth.currentUser?.email && ["tabrez007hi@gmail.com", "admin@gmail.com"].includes(auth.currentUser.email.toLowerCase()) && (
-             <button onClick={() => navigate('/admin-dashboard')} className="w-full flex items-center gap-3 px-3 py-2 mt-4 text-sm font-bold text-pink-400 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 rounded-lg transition-colors cursor-pointer shadow-sm">
-                <i className="bi bi-shield-lock-fill"></i> Admin Panel
+             <button onClick={() => navigate('/admin-dashboard')} className={`w-full flex items-center py-3 mt-2 text-pink-400 bg-pink-500/10 hover:bg-pink-500/20 border border-pink-500/30 rounded-xl transition-colors cursor-pointer shadow-sm ${isSidebarCollapsed ? 'justify-center px-0' : 'px-4 gap-3.5'}`} title={isSidebarCollapsed ? "Admin Panel" : ""}>
+                <i className="bi bi-shield-lock-fill text-[15px] drop-shadow-[0_0_5px_rgba(236,72,153,0.8)]"></i>
+                {!isSidebarCollapsed && <span className="font-bold text-sm truncate">Admin Panel</span>}
              </button>
            )}
 
-           <div className="mt-8 px-3">
-              <div className={`text-[10px] font-bold px-3 py-2 rounded-lg border flex items-center gap-2 ${userRole === 'developer' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : userRole === 'pro' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'}`}>
-                {userRole === 'developer' ? <i className="bi bi-code-square"></i> : userRole === 'pro' ? <i className="bi bi-star-fill"></i> : <i className="bi bi-person"></i>}
-                {userRole.toUpperCase()} PLAN
+           <div className={`mt-6 ${isSidebarCollapsed ? 'flex justify-center' : 'px-3'}`}>
+              <div className={`flex items-center justify-center font-bold rounded-lg border ${isSidebarCollapsed ? 'w-10 h-10' : 'px-3 py-2.5 gap-2'} ${userRole === 'developer' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : userRole === 'pro' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title={`${userRole.toUpperCase()} PLAN`}>
+                {userRole === 'developer' ? <i className="bi bi-code-square text-[15px]"></i> : userRole === 'pro' ? <i className="bi bi-star-fill text-[15px]"></i> : <i className="bi bi-person text-[15px]"></i>}
+                {!isSidebarCollapsed && <span className="text-[11px] tracking-widest">{userRole.toUpperCase()} PLAN</span>}
               </div>
            </div>
         </div>
 
         {userRole === 'developer' && (
-          <div className="p-4 border-t border-slate-800 shrink-0 space-y-2">
-            <button onClick={() => navigate('/deploy-template')} className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer font-bold text-sm shadow-[0_0_15px_rgba(79,70,229,0.3)]">
-              <i className="bi bi-cloud-arrow-up-fill"></i> Deploy Template
+          <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-950/50">
+            <button onClick={() => navigate('/deploy-template')} className={`flex items-center justify-center text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(79,70,229,0.3)] w-full py-3 ${isSidebarCollapsed ? 'px-0' : 'px-3 gap-2'}`} title={isSidebarCollapsed ? "Deploy Template" : ""}>
+              <i className="bi bi-cloud-arrow-up-fill text-lg"></i>
+              {!isSidebarCollapsed && <span className="font-bold text-sm tracking-wide">Deploy Template</span>}
             </button>
           </div>
         )}
       </aside>
 
-      <div className="flex-1 flex flex-col h-full min-w-0 bg-slate-950">
-        <nav className="relative h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 z-50 shadow-md md:shadow-none">0
+      <div className="flex-1 flex flex-col h-full min-w-0 bg-slate-950 transition-all duration-300">
+        <nav className="relative h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 z-50 shadow-md md:shadow-none">
           <div className="flex items-center gap-3 md:hidden">
             <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)]"><i className="bi bi-lightning-charge-fill text-white"></i></div>
           </div>
