@@ -4,9 +4,11 @@ import Home from './pages/Home';
 import Auth from './pages/Auth';
 import Builder from './pages/Builder';
 import UserHome from './pages/UserHome';
+import SharedWorkspace from './pages/SharedWorkspace';
 import DeployTemplate from './pages/DeployTemplate';
 import JoinMembership from './pages/JoinMembership';
 import AdminDashboard from './pages/AdminDashboard';
+import { UIProvider } from './contexts/UIContext';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -31,14 +33,16 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={user ? <Navigate to="/user/home" /> : <Home user={user} />} />
-        <Route path="/authentication" element={!user ? <Auth /> : <Navigate to="/user/home" />} />
-        
+    <UIProvider>
+      <Router>
+        <Routes>
+          <Route path="/" element={user ? <Navigate to="/user/home" /> : <Home user={user} />} />
+          <Route path="/authentication" element={!user ? <Auth /> : <Navigate to="/user/home" />} />
+          
         <Route path="/user/home" element={user ? <UserHome /> : <Navigate to="/authentication" />} />
         <Route path="/user/templates" element={user ? <UserHome /> : <Navigate to="/authentication" />} />
         <Route path="/user/explore" element={user ? <UserHome /> : <Navigate to="/authentication" />} />
+        <Route path="/share" element={<SharedWorkspace />} />
         <Route path="/join-membership" element={user ? <JoinMembership /> : <Navigate to="/authentication" />} />
         <Route path="/admin-dashboard" element={user ? <AdminDashboard /> : <Navigate to="/authentication" />} />
         
@@ -46,6 +50,7 @@ export default function App() {
         
         <Route path="/builder" element={<Builder />} />
       </Routes>
-    </Router>
+     </Router>
+    </UIProvider>
   );
 }

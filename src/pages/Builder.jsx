@@ -8,7 +8,8 @@ import AccountModal from '../components/AccountModal';
 import SettingsModal from '../components/SettingsModel';
 import WorkspacesModal from '../components/WorkspacesModal'; 
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal'; 
-import ExportModal from '../components/ExportModal'; 
+import ExportModal from '../components/ExportModal';
+import { useUI } from '../contexts/UIContext';
 import { generateCanvasHtml } from '../utils/templates';
 import { auth, db } from '../firebase';
 import { ref, get, set, onValue, update } from 'firebase/database';
@@ -46,6 +47,8 @@ export default function Builder() {
   
   const [sharedViewData, setSharedViewData] = useState(null);
   const [userRole, setUserRole] = useState('normal');
+
+  const { showToast, showConfirm } = useUI();
 
   const [autoSave, setAutoSave] = useState(() => {
     const cachedPreference = localStorage.getItem('emtee_autosave_preference');
@@ -127,7 +130,7 @@ export default function Builder() {
       return nextItems;
     });
 
-    alert("Code modifications applied successfully! DOM Tree and CSS perfectly preserved. 🚀");
+    showToast("Code modifications applied successfully! DOM Tree preserved. 🚀", "success");
   };
 
   useEffect(() => {
@@ -152,7 +155,7 @@ export default function Builder() {
           get(privateRef).then(privSnap => {
              if (privSnap.exists()) {
                 const sharedWs = privSnap.val();
-                if (!sharedWs.isPublic && !sharedWs.isShareable) {
+                if (!sharedWs.isPublic) {
                   alert('Access Denied 🔒\nThis workspace is private.');
                   navigate(user ? '/user/home' : '/authentication', { replace: true });
                 } else {
@@ -298,20 +301,27 @@ export default function Builder() {
     }
 
     update(ref(db), dbUpdates).then(() => {
-      alert('Workspace sync complete! Project changes committed to cloud database successfully.');
+      showToast('Workspace sync complete! Saved to cloud.', 'success');
     });
   };
 
   const handleCreateWorkspace = () => {
     if (userRole === 'normal' && workspaces.length >= 3) {
-      alert('Free Plan Limit: You can only have 3 active workspaces. Please upgrade to Pro or Developer to create more.');
+      showToast('Free Plan Limit: Maximum 3 active workspaces.', 'error');
       return;
     }
     if (userRole === 'pro' && workspaces.length >= 10) {
-      alert('Pro Plan Limit: You can only have 10 active workspaces.'); return;
+      showToast('Pro Plan Limit: Maximum 10 active workspaces.', 'error');
+      return;
     }
 
-    const name = prompt('Enter name for the new project:', 'New Component Project');
+
+    showConfirm({
+      title: 'New Workspace',
+      message: 'Enter a name for your new project:',
+      isPrompt: true,
+      confirmText: 'Create',
+      onConfirm: (name) => {
     if (!name || !name.trim()) return;
 
     const privateCount = workspaces.filter(w => !w.isPublic).length;
@@ -333,19 +343,28 @@ export default function Builder() {
 
     update(ref(db), dbUpdates).then(() => {
       setActiveWorkspaceId(newId);
+      showToast('Workspace created successfully!', 'success');
     });
+  }
+});
   };
 
   const handleDeleteWorkspace = (id) => {
     if (workspaces.length <= 1) return;
-    if (!window.confirm('Are you absolutely sure you want to drop this workspace project permanently? 🚨')) return;
-    const user = auth.currentUser;
-    
-    const dbUpdates = {};
-    dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
-    dbUpdates[`publicWorkspaces/${id}`] = null;
-    
-    update(ref(db), dbUpdates);
+    showConfirm({
+      title: 'Delete Workspace?',
+      message: 'Are you absolutely sure you want to drop this project permanently? 🚨',
+      danger: true,
+      confirmText: 'Delete',
+      onConfirm: () => {
+        const user = auth.currentUser;
+        const dbUpdates = {};
+        dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+        dbUpdates[`publicWorkspaces/${id}`] = null;
+        update(ref(db), dbUpdates);
+        showToast('Workspace deleted permanently.', 'success');
+      }
+    });
   };
 
   const handleSaveWorkspaceSettings = (id, updates) => {
@@ -390,11 +409,12 @@ export default function Builder() {
 
   const handleDuplicateWorkspace = (id) => {
     if (userRole === 'normal' && workspaces.length >= 3) {
-      alert('Free Plan Limit: You can only have 3 active workspaces. Please upgrade to Pro or Developer to duplicate projects.');
+      showToast('Free Plan Limit: You can only have 3 active workspaces. Please upgrade to Pro or Developer to duplicate projects.', 'error');
       return;
     }
     if (userRole === 'pro' && workspaces.length >= 10) {
-      alert('Pro Plan Limit: You can only have 10 active workspaces.'); return;
+      showToast('Pro Plan Limit: You can only have 10 active workspaces.', 'error');
+      return;
     }
 
     const match = workspaces.find(w => w.id === id);
@@ -468,6 +488,7 @@ export default function Builder() {
     });
 
     setLayoutItems(prev => [...prev, ...newItems]);
+    showToast(`Added <${type}> to canvas`, 'success');
   };
 
   const handleRemoveItem = (id) => {

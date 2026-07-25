@@ -1,4 +1,6 @@
 import React from 'react';
+import { useUI } from '../contexts/UIContext';
+
 
 export default function WorkspacesModal({ 
   isOpen, onClose, workspaces, activeWorkspaceId, currentUserUid, currentUsername, userRole, 
@@ -6,11 +8,13 @@ export default function WorkspacesModal({
 }) {
   if (!isOpen) return null;
   const atWorkspaceLimit = userRole === 'normal' && workspaces.length >= 3;
+    const { showToast, showConfirm } = useUI();
+
 
   const handleShareWorkspace = (id) => {
-    const shareUrl = `${window.location.origin}/builder?u=${currentUsername}&owner=${currentUserUid}&ws=${id}`;
+    const shareUrl = `${window.location.origin}/share?u=${currentUsername}&owner=${currentUserUid}&ws=${id}`;
     navigator.clipboard.writeText(shareUrl);
-    alert('Project workspace deep-link copied to clipboard! 🔗\n\nEnsure Public Access is toggled ON in your Workspace Settings to allow other accounts to view it.');
+    showToast('Project link copied to clipboard! 🔗', 'success');
   };
 
   return (

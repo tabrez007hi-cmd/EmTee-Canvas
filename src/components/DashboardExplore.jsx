@@ -1,57 +1,118 @@
 import React, { useState } from 'react';
+import { useUI } from '../contexts/UIContext';
 
 export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, handleClone, navigate }) {
   const [searchQuery, setSearchQuery] = useState('');
+  const { showToast, showConfirm } = useUI();
 
   const filtered = exploreWorkspaces.filter(ws => ws.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
+  // Local handler to construct and copy the share link
+  const handleShare = (e, ws) => {
+    e.stopPropagation();
+    const shareUrl = `${window.location.origin}/share?u=${ws.authorName}&owner=${ws.authorId}&ws=${ws.id}`;
+    navigator.clipboard.writeText(shareUrl);
+    showToast('Project link copied to clipboard! 🔗', 'success');
+  };
+
+  // Helper function to render a minimal, creative role indicator
+  const renderRoleBadge = (role) => {
+    if (role === 'developer') return <span className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)] animate-pulse" title="Developer Tier"></span>;
+    if (role === 'pro') return <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.8)]" title="Pro Tier"></span>;
+    return <span className="w-2 h-2 rounded-full bg-slate-500" title="Normal Tier"></span>;
+  };
+
   return (
     <div className="animate-fade-in flex flex-col h-full text-slate-200">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-10 border-b border-slate-800/50 pb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white mb-2">Explore Community Works</h1>
-          <p className="text-slate-400">Discover, like, and clone public workspaces from creators.</p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 mb-2 tracking-tight">Explore Works</h1>
+          <p className="text-slate-400 font-medium text-sm">Discover, like, and clone public designs from the community.</p>
         </div>
-        <div className="relative w-full md:w-72 shrink-0">
-          <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"></i>
+        <div className="relative w-full md:w-80 shrink-0 group">
+          <i className="bi bi-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors"></i>
           <input 
-            type="text" placeholder="Search workspace titles..." 
+            type="text" placeholder="Search amazing works..." 
             value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} 
-            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-11 pr-4 py-2.5 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 shadow-sm"
+            className="w-full bg-slate-900/50 backdrop-blur-sm border border-slate-700/50 rounded-full pl-11 pr-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-sm transition-all"
           />
         </div>
       </div>
 
       {filtered.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 mt-12">
-          <i className="bi bi-compass text-5xl mb-4 block opacity-30"></i>
-          <p className="font-bold text-slate-400 text-lg">No public workspaces found.</p>
+          <div className="w-24 h-24 bg-slate-900 rounded-full flex items-center justify-center border border-slate-800 mb-6 shadow-inner">
+            <i className="bi bi-compass text-4xl text-slate-600"></i>
+          </div>
+          <p className="font-bold text-slate-300 text-lg">No creative works found.</p>
+          <p className="text-sm mt-2">Try adjusting your search query.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filtered.map(ws => (
-            <div key={ws.id} onClick={() => handleClone(ws)} className="group bg-slate-900 border border-slate-800 rounded-2xl p-5 hover:border-indigo-500/50 hover:shadow-[0_0_30px_rgba(79,70,229,0.15)] transition-all cursor-pointer flex flex-col relative overflow-hidden">
+            <div 
+              key={ws.id} 
+              onClick={() => handleClone(ws)} 
+              className="group bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:bg-slate-800/60 hover:border-indigo-500/50 hover:shadow-[0_10px_40px_rgba(79,70,229,0.15)] transition-all duration-300 cursor-pointer flex flex-col relative overflow-hidden"
+            >
               
-              <div className="flex items-start justify-between mb-4 relative z-10">
-                <div className="flex flex-col gap-1.5">
-                   <div className="flex items-center gap-2">
-                     {ws.authorPhoto ? <img src={ws.authorPhoto} className="w-8 h-8 rounded-full border border-slate-700 object-cover shadow-sm" alt="Author" /> : <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700"><i className="bi bi-person-fill"></i></div>}
-                     <div className="text-xs font-bold text-slate-300 truncate max-w-[100px]">@{ws.authorName}</div>
+              {/* Header section: Author Profile & Badges */}
+              <div className="flex items-start justify-between mb-6 relative z-10">
+                <div className="flex items-center gap-3">
+                   <div className="relative">
+                     {ws.authorPhoto ? (
+                       <img src={ws.authorPhoto} className="w-10 h-10 rounded-full border-2 border-slate-700 object-cover shadow-md group-hover:border-indigo-500/50 transition-colors" alt="Author" />
+                     ) : (
+                       <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border-2 border-slate-700 group-hover:border-indigo-500/50 transition-colors">
+                         <i className="bi bi-person-fill text-lg"></i>
+                       </div>
+                     )}
+                     {/* Creative minimal role badge absolute positioned on the avatar */}
+                     <div className="absolute -bottom-0.5 -right-0.5 bg-slate-900 rounded-full p-[2px]">
+                       {renderRoleBadge(ws.authorRole)}
+                     </div>
                    </div>
-                   {ws.authorRole === 'developer' && <span className="bg-purple-500/10 text-purple-400 border border-purple-500/30 text-[9px] px-1.5 py-0.5 rounded font-bold w-max">DEV</span>}
-                   {ws.authorRole === 'pro' && <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[9px] px-1.5 py-0.5 rounded font-bold w-max">PRO</span>}
-                   {ws.authorRole === 'normal' && <span className="bg-slate-800 text-slate-400 border border-slate-700 text-[9px] px-1.5 py-0.5 rounded font-bold w-max">USER</span>}
+                   <div className="flex flex-col justify-center">
+                     <span className="text-xs font-bold text-slate-200 truncate max-w-[120px] group-hover:text-indigo-300 transition-colors">@{ws.authorName}</span>
+                     <span className="text-[9px] text-slate-500 font-mono tracking-wider">{new Date(ws.updatedAt || ws.createdAt).toLocaleDateString()}</span>
+                   </div>
                 </div>
-                
-                <button onClick={(e) => handleToggleLike(e, ws.id, ws.authorId, ws.isLikedByMe)} className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-bold transition-all shadow-sm ${ws.isLikedByMe ? 'bg-pink-500/10 text-pink-400 border border-pink-500/30' : 'bg-slate-950 border border-slate-800 text-slate-500 hover:bg-slate-800 hover:text-white'}`}>
-                  <i className={`bi ${ws.isLikedByMe ? 'bi-heart-fill drop-shadow-[0_0_5px_rgba(244,114,182,0.8)]' : 'bi-heart'} ${ws.isLikedByMe ? 'animate-bounce' : ''}`}></i> {ws.likeCount}
-                </button>
               </div>
 
-              <div className="relative z-10 bg-slate-950 rounded-xl p-3 border border-slate-800 flex-1 flex flex-col justify-center transition-colors group-hover:border-indigo-500/30">
-                <h3 className="font-bold text-slate-200 text-sm mb-1 truncate group-hover:text-indigo-400 transition-colors text-center">{ws.name}</h3>
-                <div className="text-[10px] text-slate-500 text-center uppercase tracking-wider font-bold mt-2"><i className="bi bi-diagram-3 text-indigo-500/50"></i> Open Preview</div>
+              {/* Body section: Workspace Title */}
+              <div className="relative z-10 flex-1 flex flex-col justify-center mb-6 px-1">
+                <h3 className="font-extrabold text-white text-lg leading-tight mb-2 line-clamp-2 transition-colors">{ws.name}</h3>
+                <div className="flex items-center gap-3 text-[10px] text-slate-400 font-semibold tracking-wide">
+                  <span className="flex items-center gap-1.5"><i className="bi bi-diagram-3 text-indigo-400"></i> {ws.allowDomView ? 'DOM Exposed' : 'Layout'}</span>
+                  <span className="flex items-center gap-1.5"><i className="bi bi-code-slash text-emerald-400"></i> {ws.allowCodeView ? 'Code Exposed' : 'Canvas'}</span>
+                </div>
               </div>
+
+              {/* Footer section: Actions */}
+              <div className="relative z-10 flex items-center justify-between border-t border-slate-800/60 pt-4 mt-auto">
+                <button 
+                  onClick={(e) => handleToggleLike(e, ws.id, ws.authorId, ws.isLikedByMe)} 
+                  className={`cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${ws.isLikedByMe ? 'bg-pink-500/10 text-pink-400 border border-pink-500/30 shadow-[0_0_10px_rgba(236,72,153,0.1)]' : 'bg-slate-950/50 border border-slate-700/50 text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                  <i className={`bi ${ws.isLikedByMe ? 'bi-heart-fill drop-shadow-[0_0_5px_rgba(244,114,182,0.8)]' : 'bi-heart'}`}></i> {ws.likeCount}
+                </button>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={(e) => handleShare(e, ws)} 
+                    className="cursor-pointer w-8 h-8 flex items-center justify-center rounded-full bg-slate-950/50 border border-slate-700/50 text-slate-400 hover:bg-blue-600 hover:border-blue-500 hover:text-white transition-all shadow-sm"
+                    title="Copy Share Link"
+                  >
+                    <i className="bi bi-link-45deg text-sm"></i>
+                  </button>
+                  <div className="w-8 h-8 flex items-center justify-center rounded-full bg-indigo-600/10 border border-indigo-500/30 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-sm">
+                    <i className="bi bi-arrow-right-short text-lg"></i>
+                  </div>
+                </div>
+              </div>
+
+              {/* Background abstract decoration for modern feel */}
+              <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-bl-full pointer-events-none -mr-10 -mt-10 transition-transform duration-500 group-hover:scale-110"></div>
             </div>
           ))}
         </div>

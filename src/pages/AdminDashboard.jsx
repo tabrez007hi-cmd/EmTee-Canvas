@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { ref, onValue, set, update, get } from 'firebase/database';
+import { useUI } from '../contexts/UIContext';
+
 
 const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
       ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
@@ -14,6 +16,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [universalMessage, setUniversalMessage] = useState('');
   const [isSendingGlobal, setIsSendingGlobal] = useState(false);
+  const { showToast, showConfirm } = useUI();
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -35,11 +38,16 @@ export default function AdminDashboard() {
   }, [navigate]);
 
   const handleApprove = async (req) => {
-    if (!window.confirm(`Approve ${req.email} for ${req.requestedRole.toUpperCase()}?`)) return;
-    await update(ref(db, `users/${req.uid}/profile`), { role: req.requestedRole });
-    await set(ref(db, `roleAssignments/${req.uid}`), { ...req, status: 'approved', approvedAt: Date.now(), approvedBy: auth.currentUser.email });
-    await set(ref(db, `membershipRequests/${req.uid}`), null);
-    alert('User Approved & Backed up! ✅');
+    showConfirm({
+      title: 'Approve Request?',
+      message: `Approve ${req.email} for ${req.requestedRole.toUpperCase()} tier?`,
+      onConfirm: async () => {
+        await update(ref(db, `users/${req.uid}/profile`), { role: req.requestedRole });
+        await set(ref(db, `roleAssignments/${req.uid}`), { ...req, status: 'approved', approvedAt: Date.now(), approvedBy: auth.currentUser.email });
+        await set(ref(db, `membershipRequests/${req.uid}`), null);
+        showToast('User Approved & Backed up! ✅', 'success');
+      }
+    });
   };
 
   const handleReject = async (uid) => {
@@ -54,21 +62,32 @@ export default function AdminDashboard() {
   };
 
   const handleNotifyUser = async (user) => {
-    const msg = prompt(`Enter notification message for ${user.username} (${user.email}):`);
-    if (!msg || !msg.trim()) return;
-    
-    const timestamp = Date.now();
-    const notifId = `notif_${timestamp}`;
-    const payload = { id: notifId, title: 'Admin Update', message: msg.trim(), createdAt: timestamp, read: false, sender: 'Admin' };
-    
-    await set(ref(db, `users/${user.uid}/notifications/${notifId}`), payload);
-    alert(`Notification sent to ${user.username}! 📨`);
+    showConfirm({
+      title: 'Notify User',
+      message: `Send a direct notification to ${user.username}:`,
+      isPrompt: true,
+      placeholder: 'Write message...',
+      confirmText: 'Send',
+      onConfirm: async (msg) => {
+        if (!msg || !msg.trim()) return;
+        const timestamp = Date.now();
+        const notifId = `notif_${timestamp}`;
+        const payload = { id: notifId, title: 'Admin Update', message: msg.trim(), createdAt: timestamp, read: false, sender: 'Admin' };
+        
+        await set(ref(db, `users/${user.uid}/notifications/${notifId}`), payload);
+        showToast(`Notification sent to ${user.username}! 📨`, 'success');
+      }
+    });
   };
 
   const handleSendUniversalMessage = async () => {
     if (!universalMessage.trim()) return;
-    if (!window.confirm('Are you absolutely sure? This will send a notification to EVERY registered user.')) return;
-    
+    showConfirm({
+      title: 'Universal Broadcast',
+      message: 'Are you absolutely sure? This will send a notification to EVERY registered user.',
+      danger: true,
+      confirmText: 'Broadcast',
+      onConfirm: async () => {   
     setIsSendingGlobal(true);
     try {
       const snap = await get(ref(db, 'users'));
@@ -85,12 +104,14 @@ export default function AdminDashboard() {
         });
         
         await update(ref(db), updates);
-        alert('Universal notification broadcasted successfully! 🌍');
+        showToast('Universal notification broadcasted successfully! 🌍', 'success');
         setUniversalMessage('');
       }
     } catch(e) {
-      alert('Failed to send global notification.');
+      showToast('Failed to send global notification.', 'error');
     }
+  }
+});
     setIsSendingGlobal(false);
   };
 

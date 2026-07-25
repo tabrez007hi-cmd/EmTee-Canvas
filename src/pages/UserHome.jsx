@@ -167,8 +167,13 @@ export default function UserHome() {
 
     const newId = updates.name !== match.name ? generateProjectSlug(updates.name) : id;
     const updatedWS = { 
-      ...match, id: newId, name: updates.name, isPublic: updates.isPublic, isShareable: updates.isShareable, 
-      allowCodeView: updates.allowCodeView, allowDomView: updates.allowDomView, updatedAt: Date.now() 
+      ...match, 
+      id: newId, 
+      name: updates.name, 
+      isPublic: updates.isPublic, 
+      allowCodeView: updates.allowCodeView, 
+      allowDomView: updates.allowDomView, 
+      updatedAt: Date.now() 
     };
 
     const dbUpdates = {};
