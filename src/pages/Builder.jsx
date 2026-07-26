@@ -175,17 +175,23 @@ export default function Builder() {
   useEffect(() => {
     const user = auth.currentUser;
     if (!user) return; 
+    
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+  : [];
 
-    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) : [];
-    const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+// Evaluate role (Example from UserHome.jsx)
+const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
-    const profileRef = ref(db, `users/${user.uid}/profile`);
-    onValue(profileRef, (snapshot) => {
-      if (snapshot.exists()) {
-         setUserProfile(snapshot.val());
-         setUserRole(isHardcodedDev ? 'admin' : (snapshot.val().role || 'normal'));
-      }
-    });
+const profileRef = ref(db, `users/${user.uid}/profile`);
+onValue(profileRef, (snapshot) => {
+  if (snapshot.exists()) {
+     const data = snapshot.val();
+     setUserProfile(data);
+     // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
+     setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+  }
+});
 
     const workspacesRef = ref(db, `users/${user.uid}/workspaces`);
     onValue(workspacesRef, (snapshot) => {

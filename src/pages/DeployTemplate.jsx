@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
-import { ref, set, get, update } from 'firebase/database'; // ✨ Added 'get' and 'update'
+import { ref, set, get, update,onValue } from 'firebase/database'; // ✨ Added 'get' and 'update'
 
 const wrapHtmlToLayout = (htmlString) => {
   return JSON.stringify([{
@@ -21,6 +21,8 @@ export default function DeployTemplate() {
   const navigate = useNavigate();
   const location = useLocation();
   const [loading, setLoading] = useState(true);
+  const [userRole, setUserRole] = useState('normal');
+  const [userProfile, setUserProfile] = useState(null);
 
   // ✨ Detect if we are updating an existing template via URL or Router State
   const queryParams = new URLSearchParams(location.search);
@@ -41,7 +43,22 @@ export default function DeployTemplate() {
     const user = auth.currentUser;
     if (!user) { navigate('/authentication'); return; }
 
-    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) : [];
+    // 🔐 Parse emails from the .env file dynamically
+const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+  : [];
+
+const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+
+const profileRef = ref(db, `users/${user.uid}/profile`);
+onValue(profileRef, (snapshot) => {
+  if (snapshot.exists()) {
+     const data = snapshot.val();
+     setUserProfile(data);
+     // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
+     setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+  }
+});
     
     if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) {
       navigate('/user/home');

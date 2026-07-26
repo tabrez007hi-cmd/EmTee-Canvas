@@ -70,23 +70,23 @@ export default function JoinMembership() {
           </button>
         </div>
 
-        {/* DEVELOPER TIER */}
+        {/* ADVANCE TIER */}
         <div className="bg-slate-900 border border-purple-500/30 hover:border-purple-500/60 rounded-3xl p-8 shadow-2xl flex flex-col relative overflow-hidden transition-all group">
           <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110"></div>
           <div className="w-14 h-14 bg-purple-500/20 border border-purple-500/40 text-purple-400 rounded-2xl flex items-center justify-center text-2xl mb-4 shadow-[0_0_15px_rgba(168,85,247,0.3)]"><i className="bi bi-code-square"></i></div>
-          <h2 className="text-2xl font-bold text-white mb-2">Developer Version</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Advance Version</h2>
           <p className="text-slate-400 text-sm mb-6 flex-1">For advanced engineers. Unlimited workspaces, template deployment capabilities, and deep API access.</p>
           <ul className="space-y-3 mb-8 text-sm font-semibold text-slate-300">
             <li><i className="bi bi-check-circle-fill text-emerald-400 mr-2"></i> Unlimited Workspaces</li>
             <li><i className="bi bi-check-circle-fill text-emerald-400 mr-2"></i> Public Template Deployment</li>
-            <li><i className="bi bi-check-circle-fill text-emerald-400 mr-2"></i> Developer Whitelisting</li>
+            <li><i className="bi bi-check-circle-fill text-emerald-400 mr-2"></i> Advance Whitelisting</li>
           </ul>
           <button 
-            disabled={loading || currentRequest === 'developer'} 
-            onClick={() => handleRequest('developer')} 
-            className={`w-full py-3.5 rounded-xl font-bold transition-all ${currentRequest === 'developer' ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)] cursor-pointer'}`}
+            disabled={loading || currentRequest === 'advance'} 
+            onClick={() => handleRequest('advance')} 
+            className={`w-full py-3.5 rounded-xl font-bold transition-all ${currentRequest === 'advance' ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700' : 'bg-purple-600 hover:bg-purple-500 text-white shadow-[0_0_20px_rgba(147,51,234,0.4)] cursor-pointer'}`}
           >
-            {currentRequest === 'developer' ? 'Request Pending...' : 'Request Dev Access'}
+            {currentRequest === 'advance' ? 'Request Pending...' : 'Request Advance Access'}
           </button>
         </div>
       </div>

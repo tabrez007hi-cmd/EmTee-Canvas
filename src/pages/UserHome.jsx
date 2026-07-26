@@ -49,17 +49,23 @@ export default function UserHome() {
     const user = auth.currentUser;
     if (!user) { navigate('/authentication'); return; }
 
-    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) : [];
-    const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+    // 🔐 Parse emails from the .env file dynamically
+const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+  : [];
 
-    const profileRef = ref(db, `users/${user.uid}/profile`);
-    onValue(profileRef, (snapshot) => {
-      if (snapshot.exists()) {
-         const data = snapshot.val();
-         setUserProfile(data);
-         setUserRole(isHardcodedDev ? 'admin' : (data.role || 'normal'));
-      }
-    });
+// Evaluate role (Example from UserHome.jsx)
+const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+
+const profileRef = ref(db, `users/${user.uid}/profile`);
+onValue(profileRef, (snapshot) => {
+  if (snapshot.exists()) {
+     const data = snapshot.val();
+     setUserProfile(data);
+     // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
+     setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+  }
+});
 
     onValue(ref(db, `users/${user.uid}/workspaces`), (snapshot) => {
       if (snapshot.exists()) {
@@ -283,15 +289,15 @@ export default function UserHome() {
            )}
 
            <div className={`mt-6 ${isSidebarCollapsed ? 'flex justify-center' : 'px-3'}`}>
-              <div className={`flex items-center justify-center font-bold rounded-lg border ${isSidebarCollapsed ? 'w-10 h-10' : 'px-3 py-2.5 gap-2'} ${userRole === 'admin' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' : userRole === 'developer' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : userRole === 'pro' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title={`${userRole.toUpperCase()} PLAN`}>
+              <div className={`flex items-center justify-center font-bold rounded-lg border ${isSidebarCollapsed ? 'w-10 h-10' : 'px-3 py-2.5 gap-2'} ${userRole === 'admin' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30' : userRole === 'advance' ? 'bg-purple-500/10 text-purple-400 border-purple-500/30' : userRole === 'pro' ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' : 'bg-slate-800 text-slate-300 border-slate-700'}`} title={`${userRole.toUpperCase()} PLAN`}>
                 
-                {userRole === 'admin' ? <i className="bi bi-shield-lock-fill text-[15px]"></i> : userRole === 'developer' ? <i className="bi bi-code-square text-[15px]"></i> : userRole === 'pro' ? <i className="bi bi-star-fill text-[15px]"></i> : <i className="bi bi-person text-[15px]"></i>}
+                {userRole === 'admin' ? <i className="bi bi-shield-lock-fill text-[15px]"></i> : userRole === 'advance' ? <i className="bi bi-code-square text-[15px]"></i> : userRole === 'pro' ? <i className="bi bi-star-fill text-[15px]"></i> : <i className="bi bi-person text-[15px]"></i>}
                 {!isSidebarCollapsed && <span className="text-[11px] tracking-widest">{userRole.toUpperCase()} PLAN</span>}
               </div>
            </div>
         </div>
 
-        {(userRole === 'developer' || userRole === 'admin') && (
+        {(userRole === 'advance' || userRole === 'admin') && (
           <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-950/50">
             <button onClick={() => navigate('/deploy-template')} className={`flex items-center justify-center text-white bg-indigo-600 hover:bg-indigo-500 rounded-xl transition-all cursor-pointer shadow-[0_0_15px_rgba(79,70,229,0.3)] w-full py-3 ${isSidebarCollapsed ? 'px-0' : 'px-3 gap-2'}`} title={isSidebarCollapsed ? "Deploy Template" : ""}>
               <i className="bi bi-cloud-arrow-up-fill text-lg"></i>
@@ -317,7 +323,7 @@ export default function UserHome() {
             <NotificationBell />
             <div className="w-px h-6 bg-slate-800"></div>
             <button onClick={() => setIsAccountModalOpen(true)} className="flex items-center gap-2 hover:bg-slate-800 px-2 py-1 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-700">
-              <span className="text-sm font-semibold text-slate-300 hidden lg:block">{userProfile?.username || 'Developer'}</span>
+              <span className="text-sm font-semibold text-slate-300 hidden lg:block">{userProfile?.username || 'Advance'}</span>
               {userProfile?.photoURL && !imgError ? (
                 <img src={userProfile.photoURL} alt="User" onError={() => setImgError(true)} className="h-8 w-8 rounded-full object-cover border border-slate-700" />
               ) : (

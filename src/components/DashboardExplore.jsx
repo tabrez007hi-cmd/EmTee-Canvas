@@ -70,10 +70,12 @@ export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, 
                      )}
                    </div>
                    
-                   <div className="flex flex-col justify-center gap-0.5">
-                     <span className="text-xs font-bold text-slate-200 truncate max-w-[120px] group-hover:text-indigo-300 transition-colors">@{ws.authorName}</span>
-                     <span className="text-[9px] text-slate-500 font-mono tracking-wider">{new Date(ws.updatedAt || ws.createdAt).toLocaleDateString()}</span>
-                   </div>
+                  <div className="flex flex-col justify-center gap-0.5">
+   <div className="group-hover:text-indigo-300 transition-colors">
+     <RoleBadge role={ws.authorRole} username={ws.authorName} prefix="@" />
+   </div>
+   <span className="text-[9px] text-slate-500 font-mono tracking-wider">{new Date(ws.updatedAt || ws.createdAt).toLocaleDateString()}</span>
+</div>
                 </div>
               </div>
 

@@ -17,6 +17,28 @@ export default function AdminDashboard() {
   const [universalMessage, setUniversalMessage] = useState('');
   const [isSendingGlobal, setIsSendingGlobal] = useState(false);
   const { showToast, showConfirm } = useUI();
+  const [userProfile, setUserProfile] = useState(null);
+  const [userRole, setUserRole] = useState('normal');
+
+  const user = auth.currentUser;
+      if (!user) { navigate('/authentication'); return; }
+
+  const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+  : [];
+
+// Evaluate role (Example from UserHome.jsx)
+const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+
+const profileRef = ref(db, `users/${user.uid}/profile`);
+// onValue(profileRef, (snapshot) => {
+//   if (snapshot.exists()) {
+//      const data = snapshot.val();
+//     //  setUserProfile(data);
+//      // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
+//      setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+//   }
+// });
 
   useEffect(() => {
     const user = auth.currentUser;

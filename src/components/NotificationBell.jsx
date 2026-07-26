@@ -66,12 +66,16 @@ export default function NotificationBell() {
           </span>
         )}
       </button>
+      
 
       {isOpen && (
         <div className="absolute right-0 mt-3 w-80 bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.6)] z-50 overflow-hidden flex flex-col max-h-[400px] animate-fade-in text-slate-200">
           <div className="bg-slate-950 border-b border-slate-800 px-4 py-3 flex items-center justify-between shrink-0">
             <span className="font-bold text-white flex items-center gap-2"><i className="bi bi-bell text-indigo-500 drop-shadow-[0_0_5px_rgba(79,70,229,0.8)]"></i> Notifications</span>
             {unreadCount > 0 && <span className="text-[10px] bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 font-bold px-2 py-0.5 rounded-full">{unreadCount} New</span>}
+            <button onClick={() => setIsOpen(false)} className="text-slate-500 hover:text-white transition-colors cursor-pointer">
+          <i className="bi bi-x-lg text-sm"></i>
+      </button>
           </div>
           
           <div className="overflow-y-auto flex-1 custom-scrollbar p-2 space-y-2">

@@ -1,5 +1,7 @@
 import React from 'react';
 
+import RoleBadge from './RoleBadge';
+
 export default function DashboardWorkspaces({ workspaces, handleCreateProject, atWorkspaceLimit, setWorkspaceSettingsTarget, navigate, userProfile }) {
   return (
     <div className="animate-fade-in flex flex-col h-full text-slate-200">
@@ -41,7 +43,13 @@ export default function DashboardWorkspaces({ workspaces, handleCreateProject, a
                    <h3 className="font-bold text-white text-base truncate group-hover:text-indigo-300 transition-colors">{ws.name}</h3>
                    {ws.isPublic ? <i className="bi bi-globe-americas text-emerald-400 text-[10px]" title="Public Explorer Node"></i> : <i className="bi bi-lock-fill text-amber-500 text-[10px]" title="Private"></i>}
                 </div>
-                <div className="text-[11px] text-slate-500 font-mono truncate mb-3">ID: {ws.id}</div>
+                <div className="text-[11px] text-slate-500 font-mono truncate mb-2">ID: {ws.id}</div>
+                
+                {/* 🌟 New Role Badge for Personal Workspaces */}
+                <div className="mb-3">
+                  <RoleBadge role={userProfile?.role} username={userProfile?.username || 'User'} prefix="@" />
+                </div>
+
                 <div className="flex items-center justify-between text-xs text-slate-400 font-medium border-t border-slate-800 pt-3">
                    <span>Updated</span><span className="text-slate-300">{new Date(ws.updatedAt || Date.now()).toLocaleDateString()}</span>
                 </div>

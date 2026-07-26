@@ -32,15 +32,23 @@ export default function SharedWorkspace() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       if (user) {
-        const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) : [];
-        const isHardcodedDev = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+        // 🔐 Parse emails from the .env file dynamically
+const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+  : [];
 
-        onValue(ref(db, `users/${user.uid}/profile`), (snap) => {
-          if (snap.exists()) {
-             setUserProfile(snap.val());
-             setUserRole(isHardcodedDev ? 'admin' : (snap.val().role || 'normal'));
-          }
-        });
+// Evaluate role (Example from UserHome.jsx)
+const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+
+const profileRef = ref(db, `users/${user.uid}/profile`);
+onValue(profileRef, (snapshot) => {
+  if (snapshot.exists()) {
+     const data = snapshot.val();
+     setUserProfile(data);
+     // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
+     setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+  }
+});
 
         onValue(ref(db, `users/${user.uid}/workspaces`), (snap) => {
           if (snap.exists()) setUserWorkspaces(Object.values(snap.val()));
