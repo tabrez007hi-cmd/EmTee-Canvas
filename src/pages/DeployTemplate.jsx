@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
-import { ref, set, get, update,onValue } from 'firebase/database'; // ✨ Added 'get' and 'update'
+import { useUI } from '../contexts/UIContext';
+import { ref, set, get, update,onValue } from 'firebase/database';
 
 const wrapHtmlToLayout = (htmlString) => {
   return JSON.stringify([{
@@ -22,6 +23,7 @@ export default function DeployTemplate() {
   const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState('normal');
+    const { showToast, showConfirm } = useUI();
   const [userProfile, setUserProfile] = useState(null);
 
   // ✨ Detect if we are updating an existing template via URL or Router State
@@ -112,7 +114,7 @@ onValue(profileRef, (snapshot) => {
   const handleDeploy = async (e) => {
     e.preventDefault();
     if (!name.trim() || !htmlCode.trim() || !description.trim()) {
-      alert('Please fill out all required fields.');
+      showToast('Please fill out all required fields.', 'error');
       return;
     }
 
@@ -133,7 +135,7 @@ onValue(profileRef, (snapshot) => {
           updatedAt: Date.now()
         };
         await update(ref(db, `templates/${editId}`), updates);
-        alert('Template updated successfully! 🚀');
+        showToast('Template updated successfully! ', 'success');
       } else {
         const templateId = `tpl_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         const payload = {
@@ -146,13 +148,13 @@ onValue(profileRef, (snapshot) => {
           layouts: wrapHtmlToLayout(finalHtml)
         };
         await set(ref(db, `templates/${templateId}`), payload);
-        alert('Template deployed successfully to global directory! 🚀');
+        showToast('Template deployed successfully to global directory!','success');
       }
       
       navigate('/user/templates');
     } catch (error) {
       console.error(error);
-      alert('Deployment/Update failed. Please check your connection.');
+      showToast('Deployment/Update failed. Please check your connection.', 'error');
     }
     setIsSubmitting(false);
   };

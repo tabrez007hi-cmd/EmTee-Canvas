@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAttributesForTag } from '../utils/htmlAttributes'; 
 
 // --- CSS Translation Engines ---
 const objToCss = (obj) => {
@@ -23,7 +24,7 @@ const cssToObj = (cssString) => {
   return obj;
 };
 
-// --- UI Components (Extracted to maintain React Focus) ---
+// --- UI Components ---
 const PropField = ({ label, propName, placeholder = '', value, onChange }) => (
   <div>
     <label className="text-[9px] text-slate-400 mb-1 block font-bold truncate pr-1" title={label}>{label}</label>
@@ -52,13 +53,10 @@ const PropSelect = ({ label, propName, options, value, onChange }) => (
 );
 
 const AccordionGroup = ({ id, title, icon, isOpen, onToggle, children, searchTerm, keywords = '' }) => {
-  // Search logic for dynamic accordions
   const term = searchTerm?.toLowerCase() || '';
   const isMatch = !term || title.toLowerCase().includes(term) || keywords.toLowerCase().includes(term);
 
   if (!isMatch) return null;
-
-  // Auto-expand if actively searching
   const actuallyOpen = term ? true : isOpen;
 
   return (
@@ -83,22 +81,26 @@ export default function InspectorPanel({
   const [pendingParentId, setPendingParentId] = useState(null);
   const [pendingSrc, setPendingSrc] = useState('');
   const [pendingHref, setPendingHref] = useState('');
+  
+  const [pendingAttributes, setPendingAttributes] = useState({});
+  const [newAttrName, setNewAttrName] = useState('');
+  const [newAttrValue, setNewAttrValue] = useState('');
 
   const [breakpoint, setBreakpoint] = useState('desktop'); 
   const [pendingStyles, setPendingStyles] = useState({});
   const [pendingTabletStyles, setPendingTabletStyles] = useState({});
   const [pendingMobileStyles, setPendingMobileStyles] = useState({});
 
-  const [editorMode, setEditorMode] = useState('visual'); 
+  // ✨ NEW: Tab Routing System
+  const [editorMode, setEditorMode] = useState('css-props'); // 'html-props', 'css-props', 'code'
+  const [codeTab, setCodeTab] = useState('css'); // 'css', 'html'
+
   const [rawCss, setRawCss] = useState('');
   const [pendingRawHtml, setPendingRawHtml] = useState('');
-
-  // ✨ NEW: Smart Search Engine State
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Manage all 13 Inspector Accordions
   const [accState, setAccState] = useState({
-    structure: true, content: true, boxModel: true, typography: false, 
+    structure: true, attributes: true, content: true, boxModel: true, typography: false, 
     layout: false, flexbox: false, grid: false, backgrounds: false, 
     effects: false, animation: false, lists: false, ui: false, logical: false
   });
@@ -121,6 +123,7 @@ export default function InspectorPanel({
     ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer', 'ul', 'ol', 'table', 'tbody', 'thead', 'tr'].includes(item.type) && item.id !== selectedElementId
   );
   const siblings = activeItemData ? layoutItems.filter(i => i.parentId === activeItemData.parentId) : [];
+  const applicableAttributes = elemType ? getAttributesForTag(elemType) : [];
 
   useEffect(() => {
     if (activeItemData) {
@@ -133,18 +136,24 @@ export default function InspectorPanel({
       setPendingTabletStyles(activeItemData.tabletStyles || {});
       setPendingMobileStyles(activeItemData.mobileStyles || {});
       setPendingRawHtml(activeItemData.rawHtml || '');
+      setPendingAttributes(activeItemData.attributes || {});
       
-      setEditorMode(activeItemData.rawHtml && !activeItemData.isRawChild ? 'html' : 'visual'); 
+      // Auto-switch to HTML Code tab if element has raw HTML overrides
+      if (activeItemData.rawHtml && !activeItemData.isRawChild) {
+         setEditorMode('code');
+         setCodeTab('html');
+      }
     } else {
       setPendingText(''); setPendingCustomId(''); setPendingParentId(null);
       setPendingSrc(''); setPendingHref('');
       setPendingStyles({}); setPendingTabletStyles({}); setPendingMobileStyles({});
       setPendingRawHtml('');
+      setPendingAttributes({});
     }
   }, [selectedElementId, activeItemData]);
 
   useEffect(() => {
-    if (editorMode === 'code') {
+    if (editorMode === 'code' && codeTab === 'css') {
       let currentObj = {};
       if (breakpoint === 'desktop') currentObj = pendingStyles;
       else if (breakpoint === 'tablet') currentObj = pendingTabletStyles;
@@ -152,7 +161,7 @@ export default function InspectorPanel({
       
       setRawCss(objToCss(currentObj));
     }
-  }, [editorMode, breakpoint, pendingStyles, pendingTabletStyles, pendingMobileStyles]); 
+  }, [editorMode, codeTab, breakpoint, pendingStyles, pendingTabletStyles, pendingMobileStyles]); 
 
   const syncRawToState = (cssStr = rawCss) => {
     const parsed = cssToObj(cssStr);
@@ -164,17 +173,27 @@ export default function InspectorPanel({
 
   const generateHtmlStub = () => {
     let tag = activeItemData.type;
-    if (tag === 'navbar') tag = 'nav'; if (tag === 'sidebar') tag = 'aside'; if (tag === 'footer') tag = 'footer';
     const idStr = pendingCustomId ? ` id="${pendingCustomId}"` : '';
-    const srcStr = pendingSrc ? ` src="${pendingSrc}"` : '';
-    const hrefStr = pendingHref ? ` href="${pendingHref}"` : '';
-    return `<${tag}${idStr}${srcStr}${hrefStr} class="transition-all relative">\n  ${pendingText}\n</${tag}>`;
+    return `<${tag}${idStr} class="transition-all relative">\n  ${pendingText}\n</${tag}>`;
   };
 
+  // ✨ NEW: Multi-Tab Handling Logic
   const handleModeSwitch = (mode) => {
-    if (mode === 'visual' && editorMode === 'code') syncRawToState(); 
-    if (mode === 'html' && !pendingRawHtml && !isRawVirtualNode) setPendingRawHtml(generateHtmlStub());
+    if (editorMode === 'code' && codeTab === 'css' && mode !== 'code') {
+       syncRawToState(); 
+    }
+    if (mode === 'code' && codeTab === 'html' && !pendingRawHtml && !isRawVirtualNode) {
+       setPendingRawHtml(generateHtmlStub());
+    }
     setEditorMode(mode);
+  };
+
+  const handleCodeTabSwitch = (tab) => {
+     if (codeTab === 'css' && tab === 'html') {
+        syncRawToState();
+        if (!pendingRawHtml && !isRawVirtualNode) setPendingRawHtml(generateHtmlStub());
+     }
+     setCodeTab(tab);
   };
 
   const handleStyleFieldChange = (prop, val) => {
@@ -189,12 +208,31 @@ export default function InspectorPanel({
     return pendingMobileStyles[prop] || '';
   };
 
+  const handleAddAttribute = () => {
+    if (!newAttrName.trim()) return;
+    setPendingAttributes(prev => ({ ...prev, [newAttrName.trim()]: newAttrValue }));
+    setNewAttrName('');
+    setNewAttrValue('');
+  };
+
+  const handleUpdateAttribute = (key, val) => {
+    setPendingAttributes(prev => ({ ...prev, [key]: val }));
+  };
+
+  const handleRemoveAttribute = (key) => {
+    setPendingAttributes(prev => {
+      const copy = { ...prev };
+      delete copy[key];
+      return copy;
+    });
+  };
+
   const handleExecute = () => {
     let finalStyles = pendingStyles;
     let finalTablet = pendingTabletStyles;
     let finalMobile = pendingMobileStyles;
 
-    if (editorMode === 'code') {
+    if (editorMode === 'code' && codeTab === 'css') {
        const parsed = syncRawToState(rawCss);
        if (breakpoint === 'desktop') finalStyles = parsed;
        if (breakpoint === 'tablet') finalTablet = parsed;
@@ -204,11 +242,11 @@ export default function InspectorPanel({
     onApplyChanges(selectedElementId, {
       text: pendingText, styles: finalStyles, tabletStyles: finalTablet,
       mobileStyles: finalMobile, customId: pendingCustomId, parentId: pendingParentId,
-      src: pendingSrc, href: pendingHref, rawHtml: pendingRawHtml
+      src: pendingSrc, href: pendingHref, rawHtml: pendingRawHtml,
+      attributes: pendingAttributes 
     });
   };
 
-  // --- ✨ FIX: Real-Time Field Filtering Logic ---
   const matchesSearch = (label, propName) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -231,7 +269,6 @@ export default function InspectorPanel({
   return (
     <div className="fixed bottom-6 right-6 z-50 w-[350px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-8rem)] bg-slate-900 border border-slate-800 rounded-2xl shadow-[0_0_40px_rgba(0,0,0,0.5)] flex flex-col overflow-hidden animate-fade-in text-slate-200">
       
-      {/* Header */}
       <div className="bg-slate-950 px-4 py-3 border-b border-slate-800 flex items-center justify-between shrink-0 z-10">
         <div className="flex items-center gap-2">
           <button onClick={() => setIsInspectMode(!isInspectMode)} className={`w-8 h-8 shrink-0 rounded-lg flex items-center justify-center transition-all border cursor-pointer shadow-sm ${isInspectMode ? 'bg-indigo-600 text-white border-indigo-500 animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.5)]' : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white'}`} title="Select Element Tool">
@@ -244,81 +281,124 @@ export default function InspectorPanel({
         <button onClick={() => setIsMinimized(true)} className="w-8 h-8 shrink-0 text-slate-500 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-lg flex items-center justify-center cursor-pointer transition-colors"><i className="bi bi-dash-lg"></i></button>
       </div>
 
-      <div className="flex-1 p-3 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-900 relative">
+      <div className="flex-1 p-3 overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-900 relative flex flex-col">
         {!activeItemData ? (
-          <div className="text-center py-12 text-xs text-slate-500 space-y-2">
+          <div className="text-center py-12 text-xs text-slate-500 space-y-2 mt-auto mb-auto">
             <i className="bi bi-diagram-3 text-4xl text-indigo-500/30 block mb-4"></i>
             <p className="font-bold text-slate-400">Builder Node Inspector</p>
-            <p className="text-[10px] px-2 leading-relaxed">Select a layer from the DOM Tree or click an element dynamically to view its CSS architecture.</p>
+            <p className="text-[10px] px-2 leading-relaxed">Select a layer from the DOM Tree or click an element dynamically to view its architecture.</p>
           </div>
         ) : (
-          <div className="pb-4">
-            {pendingRawHtml && !isRawVirtualNode && editorMode !== 'html' && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-2 mb-4 animate-fade-in">
+          <div className="pb-4 flex-1 flex flex-col">
+            
+            {/* Master Tab Switcher */}
+            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 mb-4 shrink-0">
+              <button onClick={() => handleModeSwitch('html-props')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${editorMode === 'html-props' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white cursor-pointer'}`}>
+                <i className="bi bi-gear-fill"></i> HTML
+              </button>
+              <button onClick={() => handleModeSwitch('css-props')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${editorMode === 'css-props' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white'}`}>
+                <i className="bi bi-palette-fill"></i> CSS
+              </button>
+              <button onClick={() => handleModeSwitch('code')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${editorMode === 'code' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white'}`}>
+                <i className="bi bi-code-slash"></i> Code
+              </button>
+            </div>
+
+            {/* Overrides Warnings */}
+            {editorMode !== 'code' && pendingRawHtml && !isRawVirtualNode && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 space-y-2 mb-4 animate-fade-in shrink-0">
                 <div className="flex items-center gap-1.5 text-amber-400 text-[10px] font-bold uppercase tracking-wider"><i className="bi bi-exclamation-triangle-fill"></i> Full HTML Mode Active</div>
                 <p className="text-[10px] text-amber-500/80 leading-tight">Visual settings are currently overridden by custom HTML.</p>
                 <button onClick={() => setPendingRawHtml('')} className="bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-400 text-[10px] font-bold py-1.5 px-2 rounded-lg transition-colors w-full cursor-pointer">Clear HTML Override</button>
               </div>
             )}
 
-            {isRawVirtualNode && editorMode === 'visual' && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-1.5 mb-4 animate-fade-in">
+            {isRawVirtualNode && editorMode !== 'code' && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3 space-y-1.5 mb-4 animate-fade-in shrink-0">
                 <div className="flex items-center gap-1.5 text-emerald-400 text-[10px] font-bold uppercase tracking-wider"><i className="bi bi-unlock-fill drop-shadow-[0_0_5px_rgba(52,211,153,0.8)]"></i> Deep Node Unlocked</div>
                 <p className="text-[10px] text-emerald-300/80 leading-tight">Inspecting nested template element.</p>
               </div>
             )}
 
-            <AccordionGroup id="structure" title="Structure Tree" icon="bi-diagram-3-fill" isOpen={accState.structure} onToggle={toggleAcc} searchTerm={searchTerm} keywords="unique custom id assign parent container element position order up down">
-              {showManual('unique custom id') && (
-                <div>
-                  <label className="text-[10px] text-slate-400 mb-1 font-bold flex justify-between">Unique Custom ID {isRawVirtualNode && <span className="text-[9px] text-amber-500 font-bold"><i className="bi bi-lock-fill"></i> Locked</span>}</label>
-                  <input type="text" value={pendingCustomId} onChange={(e) => setPendingCustomId(e.target.value)} className={`w-full border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono bg-slate-950 focus:outline-none focus:border-indigo-500 transition-colors ${isRawVirtualNode ? 'opacity-50 cursor-not-allowed bg-slate-900' : ''}`} placeholder="hero-container" />
-                </div>
-              )}
-              {!isRawVirtualNode && (
-                <>
-                  {showManual('assign parent container') && (
-                    <div>
-                      <label className="text-[10px] text-slate-400 mb-1 block font-bold">Assign Parent Container</label>
-                      <select value={pendingParentId || ''} onChange={(e) => setPendingParentId(e.target.value || null)} className="w-full border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none focus:border-indigo-500 bg-slate-950 transition-colors cursor-pointer truncate">
-                        <option value="">[Root Document Base]</option>
-                        {availableContainers.map(container => (<option key={container.id} value={container.id}>{container.customId ? `<${container.type}> #${container.customId}` : `<${container.type}> (${container.id.substring(0, 10)})`}</option>))}
-                      </select>
-                    </div>
+            {/* ⚙️ TAB 1: HTML Setup */}
+            {editorMode === 'html-props' && (
+              <div className="space-y-1 animate-fade-in">
+                <AccordionGroup id="structure" title="Structure & IDs" icon="bi-diagram-3-fill" isOpen={accState.structure} onToggle={toggleAcc}>
+                  <div>
+                    <label className="text-[10px] text-slate-400 mb-1 font-bold flex justify-between">Unique Custom ID {isRawVirtualNode && <span className="text-[9px] text-amber-500 font-bold"><i className="bi bi-lock-fill"></i> Locked</span>}</label>
+                    <input type="text" value={pendingCustomId} onChange={(e) => setPendingCustomId(e.target.value)} className={`w-full border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono bg-slate-950 focus:outline-none focus:border-indigo-500 transition-colors ${isRawVirtualNode ? 'opacity-50 cursor-not-allowed bg-slate-900' : ''}`} placeholder="hero-container" />
+                  </div>
+                  {!isRawVirtualNode && (
+                    <>
+                      <div className="mt-2">
+                        <label className="text-[10px] text-slate-400 mb-1 block font-bold">Assign Parent Container</label>
+                        <select value={pendingParentId || ''} onChange={(e) => setPendingParentId(e.target.value || null)} className="w-full border border-slate-700 rounded-lg px-2 py-1.5 text-[11px] text-white focus:outline-none focus:border-indigo-500 bg-slate-950 transition-colors cursor-pointer truncate">
+                          <option value="">[Root Document Base]</option>
+                          {availableContainers.map(c => (<option key={c.id} value={c.id}>{c.customId ? `<${c.type}> #${c.customId}` : `<${c.type}> (${c.id.substring(0, 10)})`}</option>))}
+                        </select>
+                      </div>
+                      {siblings.length > 1 && (
+                        <div className="pt-3 mt-3 border-t border-slate-800 flex gap-2">
+                          <button onClick={() => onMoveItem(selectedElementId, 'up')} className="flex-1 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm cursor-pointer"><i className="bi bi-arrow-up"></i> Move Up</button>
+                          <button onClick={() => onMoveItem(selectedElementId, 'down')} className="flex-1 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm cursor-pointer"><i className="bi bi-arrow-down"></i> Move Down</button>
+                        </div>
+                      )}
+                    </>
                   )}
-                  {siblings.length > 1 && showManual('element position order up down') && (
-                    <div className="pt-2 mt-2 border-t border-slate-800 flex gap-2">
-                      <button onClick={() => onMoveItem(selectedElementId, 'up')} className="flex-1 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm cursor-pointer"><i className="bi bi-arrow-up"></i> Up</button>
-                      <button onClick={() => onMoveItem(selectedElementId, 'down')} className="flex-1 py-1.5 bg-slate-800 border border-slate-700 rounded-lg text-xs font-bold text-slate-300 hover:bg-slate-700 hover:text-white shadow-sm cursor-pointer"><i className="bi bi-arrow-down"></i> Down</button>
-                    </div>
+                </AccordionGroup>
+
+                <AccordionGroup id="content" title="Element Content" icon="bi-input-cursor-text" isOpen={accState.content} onToggle={toggleAcc}>
+                  {!isMedia && (!isContainer || isRawVirtualNode) && (
+                    <div><label className="text-[10px] text-slate-400 mb-1 block font-bold">Inner Text</label><textarea value={pendingText} onChange={(e) => setPendingText(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 min-h-[40px] custom-scrollbar transition-colors" /></div>
                   )}
-                </>
-              )}
-            </AccordionGroup>
+                  {isMedia && (<div><label className="text-[10px] text-slate-400 mb-1 block font-bold">Source URL (src)</label><input type="text" value={pendingSrc} onChange={(e) => setPendingSrc(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500" /></div>)}
+                  {isLink && (<div className="mt-2"><label className="text-[10px] text-slate-400 mb-1 block font-bold">Link (href)</label><input type="text" value={pendingHref} onChange={(e) => setPendingHref(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500" /></div>)}
+                </AccordionGroup>
 
-            {/* 3-Way Mode Switcher */}
-            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800 mb-4 shrink-0">
-              <button onClick={() => handleModeSwitch('visual')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${editorMode === 'visual' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white cursor-pointer'}`}>Visual</button>
-              <button onClick={() => handleModeSwitch('code')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all cursor-pointer ${editorMode === 'code' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white'}`}>CSS</button>
-              <button disabled={isRawVirtualNode} onClick={() => handleModeSwitch('html')} className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${isRawVirtualNode ? 'opacity-40 cursor-not-allowed text-slate-600' : (editorMode === 'html' ? 'bg-indigo-600 shadow-sm text-white' : 'text-slate-500 hover:text-white cursor-pointer')}`}>HTML</button>
-            </div>
+                <AccordionGroup id="attributes" title="HTML Attributes & ARIA" icon="bi-tags-fill" isOpen={accState.attributes} onToggle={toggleAcc}>
+                  <div className="space-y-3">
+                    {Object.entries(pendingAttributes).map(([key, val]) => (
+                      <div key={key} className="flex items-center gap-2 group relative">
+                         <div className="w-1/3 text-[10px] text-slate-400 font-mono truncate py-1.5" title={key}>{key}</div>
+                         <input 
+                           type="text" value={val} onChange={(e) => handleUpdateAttribute(key, e.target.value)} 
+                           className="flex-1 bg-slate-950 border border-slate-700 text-slate-200 rounded-md px-2 py-1 text-xs font-mono outline-none focus:border-indigo-500" 
+                         />
+                         <button onClick={() => handleRemoveAttribute(key)} className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center bg-red-500/20 hover:bg-red-500 border border-red-500/50 text-red-400 hover:text-white rounded absolute right-0 top-1/2 -translate-y-1/2 cursor-pointer shadow-sm">
+                           <i className="bi bi-trash-fill text-[10px]"></i>
+                         </button>
+                      </div>
+                    ))}
+                    {Object.keys(pendingAttributes).length === 0 && (<p className="text-[10px] text-slate-500 italic mb-2">No custom attributes added.</p>)}
 
-            {/* View Renders */}
-            {editorMode === 'html' ? (
-              <textarea value={pendingRawHtml} onChange={(e) => setPendingRawHtml(e.target.value)} className="w-full h-96 bg-slate-950 text-emerald-400 font-mono text-[11px] p-3 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 custom-scrollbar shadow-inner" spellCheck="false" />
-            ) : editorMode === 'code' ? (
-              <div className="space-y-3">
-                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-                  {['desktop', 'tablet', 'mobile'].map(bp => (
-                    <button key={bp} onClick={() => setBreakpoint(bp)} className={`flex-1 py-1 text-[10px] font-bold rounded transition-all cursor-pointer capitalize ${breakpoint === bp ? 'bg-slate-800 text-indigo-400' : 'text-slate-500 hover:text-white'}`}>{bp}</button>
-                  ))}
-                </div>
-                <textarea value={rawCss} onChange={(e) => setRawCss(e.target.value)} className="w-full h-80 bg-slate-950 text-pink-400 font-mono text-[11px] p-3 rounded-xl border border-slate-700 focus:outline-none focus:border-indigo-500 custom-scrollbar shadow-inner" spellCheck="false" />
+                    <div className="mt-4 pt-3 border-t border-slate-800 space-y-2">
+                       <label className="text-[10px] font-bold text-slate-400">Add New Attribute</label>
+                       <div className="flex gap-2">
+                         <input 
+                           list="html-attributes-list" value={newAttrName} onChange={(e) => setNewAttrName(e.target.value)} 
+                           placeholder="e.g. aria-label" className="flex-1 min-w-0 bg-slate-950 border border-slate-700 text-white rounded-md px-2 py-1.5 text-xs font-mono outline-none focus:border-indigo-500" 
+                         />
+                         <datalist id="html-attributes-list">{applicableAttributes.map(attr => <option key={attr} value={attr} />)}</datalist>
+                         <input 
+                           type="text" value={newAttrValue} onChange={(e) => setNewAttrValue(e.target.value)} placeholder="value" 
+                           className="flex-1 min-w-0 bg-slate-950 border border-slate-700 text-white rounded-md px-2 py-1.5 text-xs font-mono outline-none focus:border-indigo-500" 
+                           onKeyDown={(e) => { if (e.key === 'Enter') handleAddAttribute(); }}
+                         />
+                       </div>
+                       <button onClick={handleAddAttribute} disabled={!newAttrName.trim()} className="w-full py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 text-xs font-bold rounded-md transition-all cursor-pointer disabled:opacity-50">
+                         <i className="bi bi-plus"></i> Add Attribute
+                       </button>
+                    </div>
+                  </div>
+                </AccordionGroup>
               </div>
-            ) : (
-              <div className="space-y-1 opacity-100 relative">
+            )}
+
+            {/* 🎨 TAB 2: CSS Styles */}
+            {editorMode === 'css-props' && (
+              <div className="space-y-1 opacity-100 relative animate-fade-in">
                 
-                {/* ✨ FIX: Sticky Visual Toolbar with Real-Time Search */}
+                {/* CSS Control Header: Breakpoints & Search */}
                 <div className="space-y-2 sticky top-0 z-20 bg-slate-900 pb-2 pt-1 border-b border-slate-800 mb-3">
                   <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
                     {['desktop', 'tablet', 'mobile'].map(bp => (
@@ -333,20 +413,10 @@ export default function InspectorPanel({
                       className="w-full bg-slate-950 border border-slate-800 text-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-[11px] focus:outline-none focus:border-indigo-500 transition-colors placeholder-slate-600 shadow-inner"
                     />
                     {searchTerm && (
-                      <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer">
-                        <i className="bi bi-x-circle-fill text-xs"></i>
-                      </button>
+                      <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"><i className="bi bi-x-circle-fill text-xs"></i></button>
                     )}
                   </div>
                 </div>
-
-                <AccordionGroup id="content" title="Content Attributes" icon="bi-input-cursor-text" isOpen={accState.content} onToggle={toggleAcc} searchTerm={searchTerm} keywords="inner text label source url src link destination href">
-                  {showManual('inner text label') && !isMedia && (!isContainer || isRawVirtualNode) && (
-                    <div><label className="text-[10px] text-slate-400 mb-1 block font-bold">Inner Text</label><textarea value={pendingText} onChange={(e) => setPendingText(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500 min-h-[40px] custom-scrollbar transition-colors" /></div>
-                  )}
-                  {showManual('source url src') && isMedia && (<div><label className="text-[10px] text-slate-400 mb-1 block font-bold">Source URL (src)</label><input type="text" value={pendingSrc} onChange={(e) => setPendingSrc(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500" /></div>)}
-                  {showManual('link destination href') && isLink && (<div><label className="text-[10px] text-slate-400 mb-1 block font-bold">Link (href)</label><input type="text" value={pendingHref} onChange={(e) => setPendingHref(e.target.value)} className="w-full bg-slate-950 border border-slate-700 text-white rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-indigo-500" /></div>)}
-                </AccordionGroup>
 
                 <AccordionGroup id="boxModel" title="Box Model & Sizing" icon="bi-bounding-box" isOpen={accState.boxModel} onToggle={toggleAcc} searchTerm={searchTerm} keywords="width height minwidth maxwidth minheight maxheight padding margin top right bottom left boxsizing overflow x y">
                   <div className="grid grid-cols-2 gap-2">
@@ -557,7 +627,29 @@ export default function InspectorPanel({
                     {_F('Inset', 'inset')}
                   </div>
                 </AccordionGroup>
+              </div>
+            )}
 
+            {/* 💻 TAB 3: Raw Code Editors */}
+            {editorMode === 'code' && (
+              <div className="space-y-3 animate-fade-in flex flex-col h-full">
+                <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
+                  <button onClick={() => handleCodeTabSwitch('css')} className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all cursor-pointer ${codeTab === 'css' ? 'bg-slate-800 text-pink-400 border border-slate-700 shadow-sm' : 'text-slate-500 hover:text-white border border-transparent'}`}>CSS Settings</button>
+                  <button onClick={() => handleCodeTabSwitch('html')} disabled={isRawVirtualNode} className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${isRawVirtualNode ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} ${codeTab === 'html' ? 'bg-slate-800 text-emerald-400 border border-slate-700 shadow-sm' : 'text-slate-500 hover:text-white border border-transparent'}`}>HTML Override</button>
+                </div>
+
+                {codeTab === 'css' ? (
+                  <div className="flex flex-col flex-1 h-full">
+                    <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800 mb-2">
+                      {['desktop', 'tablet', 'mobile'].map(bp => (
+                        <button key={bp} onClick={() => setBreakpoint(bp)} className={`flex-1 py-1 text-[10px] font-bold rounded transition-all cursor-pointer capitalize ${breakpoint === bp ? 'bg-slate-800 text-pink-400 border border-slate-700 shadow-sm' : 'text-slate-500 hover:text-white border border-transparent'}`}>{bp}</button>
+                      ))}
+                    </div>
+                    <textarea value={rawCss} onChange={(e) => setRawCss(e.target.value)} className="w-full h-80 bg-slate-950 text-pink-400 font-mono text-[11px] p-3 rounded-xl border border-slate-700 focus:outline-none focus:border-pink-500 custom-scrollbar shadow-inner" spellCheck="false" placeholder="/* Write custom CSS rules here */" />
+                  </div>
+                ) : (
+                  <textarea value={pendingRawHtml} onChange={(e) => setPendingRawHtml(e.target.value)} className="w-full h-96 bg-slate-950 text-emerald-400 font-mono text-[11px] p-3 rounded-xl border border-slate-700 focus:outline-none focus:border-emerald-500 custom-scrollbar shadow-inner" spellCheck="false" placeholder="<!-- Write custom HTML overrides here -->" />
+                )}
               </div>
             )}
           </div>
@@ -567,7 +659,7 @@ export default function InspectorPanel({
       {activeItemData && (
         <div className="p-3 border-t border-slate-800 bg-slate-950 shrink-0 z-20">
           <button onClick={handleExecute} className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm tracking-wide rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-2">
-            <i className="bi bi-save-fill text-[15px]"></i> Execute Style Engine
+            <i className="bi bi-save-fill text-[15px]"></i> Apply Node Changes
           </button>
         </div>
       )}

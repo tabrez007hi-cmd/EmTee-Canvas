@@ -39,19 +39,16 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
   let hoistedStyles = ''; // ✨ Engine variable to collect <style> blocks
 
   const buildNodeHtml = (item) => {
-    // Skip HTML generation for raw children since they already exist inside their parent's rawHtml
     if (!item || item.isRawChild) return '';
 
     if (item.rawHtml && item.rawHtml.trim() !== '') {
       let injectedHtml = item.rawHtml;
 
-      // ✨ CSS HOISTING ENGINE: Find <style> tags, extract CSS, and strip from Body
       injectedHtml = injectedHtml.replace(/<style[^>]*>([\s\S]*?)<\/style>/gi, (match, cssContent) => {
         hoistedStyles += cssContent + '\n';
-        return ''; // Return empty string to delete the tag from the HTML body
+        return ''; 
       });
 
-      // Bullet-proof data-id injection for raw custom code blocks
       if (!injectedHtml.includes(`data-id=`)) {
         injectedHtml = injectedHtml.replace(/(<[a-zA-Z0-9\-]+)([^>]*>)/, `$1 data-id="${item.id}"$2`);
       }
@@ -62,13 +59,27 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
     const childrenHtml = children.map(child => buildNodeHtml(child)).join('\n');
     
     const idAttr = item.customId ? `id="${item.customId}"` : '';
+    
+    // ✨ NEW: Dynamic Attributes Compiler Engine
+    let dynamicAttributesStr = '';
+    if (item.attributes && Object.keys(item.attributes).length > 0) {
+       dynamicAttributesStr = Object.entries(item.attributes)
+         .filter(([key, val]) => key && val !== undefined)
+         .map(([key, val]) => `${key}="${val}"`)
+         .join(' ');
+    }
+
     const tag = item.type;
     
-    if (tag === 'img') return `<img data-id="${item.id}" ${idAttr} src="${item.src || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=500&q=80'}" class="transition-all relative mb-1" alt="Image"/>`;
-    if (tag === 'a') return `<a data-id="${item.id}" ${idAttr} href="${item.href || '#'}" target="_blank" class="transition-all relative inline-block">${item.text || ''}${childrenHtml}</a>`;
-    if (tag === 'button') return `<button data-id="${item.id}" ${idAttr} class="transition-all relative">${item.text || ''}${childrenHtml}</button>`;
+    // Build the opening tag with all standard and dynamic attributes
+    if (tag === 'img') return `<img data-id="${item.id}" ${idAttr} src="${item.src || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=500&q=80'}" ${dynamicAttributesStr} class="transition-all relative mb-1" alt="Image"/>`;
+    if (tag === 'a') return `<a data-id="${item.id}" ${idAttr} href="${item.href || '#'}" ${dynamicAttributesStr} class="transition-all relative inline-block">${item.text || ''}${childrenHtml}</a>`;
+    if (tag === 'button') return `<button data-id="${item.id}" ${idAttr} ${dynamicAttributesStr} class="transition-all relative">${item.text || ''}${childrenHtml}</button>`;
+    if (['input', 'br', 'hr', 'source', 'track', 'wbr', 'area', 'embed', 'col'].includes(tag)) {
+        return `<${tag} data-id="${item.id}" ${idAttr} ${dynamicAttributesStr} class="transition-all relative" />`; // Self-closing tags
+    }
 
-    return `<${tag} data-id="${item.id}" ${idAttr} class="transition-all relative">${item.text || ''}${childrenHtml}</${tag}>`;
+    return `<${tag} data-id="${item.id}" ${idAttr} ${dynamicAttributesStr} class="transition-all relative">${item.text || ''}${childrenHtml}</${tag}>`;
   };
 
   // Only render elements that sit directly on the root of the canvas

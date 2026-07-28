@@ -59,18 +59,15 @@ export default function Builder() {
     localStorage.setItem('emtee_autosave_preference', JSON.stringify(autoSave));
   }, [autoSave]);
 
-  // ✨ FIX: Advanced Smart Compiler! Updates existing layout items instead of destroying the DOM Tree.
   const handleApplyCodeChanges = (newHtml) => {
     const parser = new DOMParser();
     const doc = parser.parseFromString(newHtml, 'text/html');
 
-    // 1. Extract all CSS styles
     let extractedStyles = '';
     doc.querySelectorAll('style').forEach(styleTag => {
       extractedStyles += styleTag.innerHTML + '\n';
     });
     
-    // Scrub internal builder CSS to keep output pure
     const cleanedStyles = extractedStyles
       .replace(/\[data-id\]\s*\{[^}]+\}/g, '')
       .replace(/\.selected-element\s*\{[^}]+\}/g, '')
@@ -81,9 +78,8 @@ export default function Builder() {
       .trim();
 
     setLayoutItems(prev => {
-      let nextItems = JSON.parse(JSON.stringify(prev)); // Deep clone to maintain state safety
+      let nextItems = JSON.parse(JSON.stringify(prev)); 
 
-      // 2. Save CSS safely in a hidden layout object so it doesn't get lost
       let globalCssItem = nextItems.find(i => i.id === 'global_custom_css');
       if (cleanedStyles) {
         if (globalCssItem) {
@@ -99,7 +95,6 @@ export default function Builder() {
         globalCssItem.rawHtml = '';
       }
 
-      // 3. Scan DOM and intelligently update existing elements
       nextItems.forEach(item => {
         if (item.id === 'global_custom_css') return;
 
@@ -109,12 +104,10 @@ export default function Builder() {
         } else {
           const el = doc.querySelector(`[data-id="${item.id}"]`);
           if (el) {
-            // Sync Attributes
             if (item.type === 'img' && el.getAttribute('src')) item.src = el.getAttribute('src');
             if (item.type === 'a' && el.getAttribute('href')) item.href = el.getAttribute('href');
             if (el.getAttribute('id')) item.customId = el.getAttribute('id');
 
-            // Sync Text Content securely without destroying child layout references
             const containerTags = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer', 'ul', 'ol', 'table', 'tbody', 'thead', 'tr'];
             if (!containerTags.includes(item.type)) {
               let directText = '';
@@ -180,7 +173,6 @@ export default function Builder() {
   ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
   : [];
 
-// Evaluate role (Example from UserHome.jsx)
 const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
 const profileRef = ref(db, `users/${user.uid}/profile`);
@@ -188,7 +180,6 @@ onValue(profileRef, (snapshot) => {
   if (snapshot.exists()) {
      const data = snapshot.val();
      setUserProfile(data);
-     // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
      setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
   }
 });
@@ -461,36 +452,78 @@ onValue(profileRef, (snapshot) => {
     setIsInspectorMinimized(false); 
   };
 
+  // ✨ UPGRADED: Massive styling engine mapping specifically tailored properties to HTML tags!
   const handleAddItem = (type) => {
     const newItems = [];
     const parentId = `element_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
 
-    const isContainer = ['div', 'section', 'article', 'form', 'nav', 'header', 'aside', 'footer'].includes(type);
-    const isInput = ['input', 'textarea', 'select'].includes(type);
-    const isMedia = ['img', 'video', 'iframe', 'canvas', 'svg'].includes(type);
-    const isImg = type === 'img'; 
-    const isList = ['ul', 'ol', 'table', 'tr'].includes(type);
-    const isListItem = ['li', 'td', 'th'].includes(type);
+    // Tag Dictionaries
+    const isContainer = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup'].includes(type);
+    const isInput = ['input', 'textarea', 'select', 'datalist', 'output', 'meter', 'progress'].includes(type);
+    const isMedia = ['img', 'video', 'audio', 'iframe', 'canvas', 'svg', 'object', 'embed'].includes(type);
+    const isList = ['ul', 'ol', 'dl', 'table', 'thead', 'tbody', 'tfoot', 'tr'].includes(type);
+    const isListItem = ['li', 'dt', 'dd', 'td', 'th'].includes(type);
     const isLink = type === 'a';
     const isBtn = type === 'button';
-    const isLabel = type === 'label';
+    const hasSrc = ['img', 'video', 'audio', 'iframe', 'embed', 'source', 'track'].includes(type);
+    const hasHref = ['a', 'area', 'base', 'link'].includes(type);
+
+    // Smart Text Injection (avoids putting text inside empty elements like <br> or <hr>)
+    let defaultText = '';
+    const emptyElements = ['br', 'wbr', 'hr', 'area', 'col', 'source', 'track', 'img', 'input', 'embed', 'keygen', 'spacer'];
+    if (!isMedia && !isInput && !isContainer && !isList && !isListItem && !emptyElements.includes(type)) {
+       defaultText = isLink ? 'Link Text' : isBtn ? 'Button' : `${type.toUpperCase()} Element`;
+    }
+
+    // ✨ The Intelligence Core: Translates the tag into its native CSS equivalent
+    let defaultStyles = { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' };
+
+    if (isContainer) defaultStyles = { minHeight: '50px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' };
+    
+    // Headings
+    if (type === 'h1') defaultStyles = { ...defaultStyles, fontSize: '2.5rem', fontWeight: '800', lineHeight: '1.2' };
+    if (type === 'h2') defaultStyles = { ...defaultStyles, fontSize: '2rem', fontWeight: '700', lineHeight: '1.3' };
+    if (type === 'h3') defaultStyles = { ...defaultStyles, fontSize: '1.75rem', fontWeight: '700', lineHeight: '1.4' };
+    if (type === 'h4') defaultStyles = { ...defaultStyles, fontSize: '1.5rem', fontWeight: '600', lineHeight: '1.5' };
+    if (type === 'h5') defaultStyles = { ...defaultStyles, fontSize: '1.25rem', fontWeight: '600' };
+    if (type === 'h6') defaultStyles = { ...defaultStyles, fontSize: '1rem', fontWeight: '600' };
+    
+    // Formatting & Text nodes
+    if (type === 'p') defaultStyles = { ...defaultStyles, fontSize: '1rem', lineHeight: '1.6' };
+    if (type === 'strong' || type === 'b') defaultStyles = { ...defaultStyles, fontWeight: 'bold' };
+    if (type === 'em' || type === 'i') defaultStyles = { ...defaultStyles, fontStyle: 'italic' };
+    if (type === 'u' || type === 'ins') defaultStyles = { ...defaultStyles, textDecoration: 'underline' };
+    if (type === 's' || type === 'strike' || type === 'del') defaultStyles = { ...defaultStyles, textDecoration: 'line-through' };
+    if (type === 'mark') defaultStyles = { ...defaultStyles, backgroundColor: '#fef08a', padding: '0 4px', color: '#000' };
+    if (type === 'code' || type === 'pre' || type === 'kbd' || type === 'samp') defaultStyles = { ...defaultStyles, fontFamily: 'monospace', backgroundColor: '#f1f5f9', padding: '4px 6px', borderRadius: '4px' };
+    if (type === 'blockquote') defaultStyles = { ...defaultStyles, borderLeft: '4px solid #cbd5e1', paddingLeft: '16px', fontStyle: 'italic', color: '#64748b', margin: '10px 0' };
+    if (type === 'a') defaultStyles = { ...defaultStyles, color: '#3b82f6', textDecoration: 'underline', cursor: 'pointer' };
+    if (type === 'hr') defaultStyles = { width: '100%', borderTop: '1px solid #cbd5e1', margin: '16px 0' };
+    
+    // Inputs & Forms
+    if (isBtn) defaultStyles = { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' };
+    if (isInput) defaultStyles = { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' };
+    
+    // Media & Visual
+    if (type === 'img') defaultStyles = { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' };
+    if (type === 'video' || type === 'iframe' || type === 'canvas' || type === 'object') defaultStyles = { width: '100%', minHeight: '200px', backgroundColor: '#e2e8f0', borderRadius: '8px' };
+    if (type === 'audio') defaultStyles = { width: '100%', height: '54px' };
+    if (type === 'svg') defaultStyles = { minHeight: '100px', width: '100px', backgroundColor: '#f1f5f9' };
+    
+    // Tables & Lists
+    if (isList) defaultStyles = { paddingLeft: '20px', marginBottom: '1rem', width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' };
+    if (type === 'table') defaultStyles = { width: '100%', borderCollapse: 'collapse', backgroundColor: '#ffffff', border: '1px solid #e2e8f0' };
 
     newItems.push({
       id: parentId, type: type, customId: '', parentId: null,  
-      text: (isMedia || isInput || isContainer || isList || isListItem) ? '' : isLink ? 'Click Here' : isBtn ? 'Submit' : isLabel ? 'Label Text' : `${type.toUpperCase()} Text`,
-      src: type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : null,
-      href: isLink ? '#' : null,
-      
-      placeholder: isInput ? 'Enter text here...' : null,
+      text: defaultText,
+      src: hasSrc ? (type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : '') : null,
+      href: hasHref ? '#' : null,
+      placeholder: isInput ? 'Enter data here...' : null,
       inputType: type === 'input' ? 'text' : null,
-
-      styles: isContainer ? { minHeight: '100px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' } 
-      : isImg ? { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' } 
-      : isInput ? { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' }
-      : isBtn ? { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' }
-      : isList ? { paddingLeft: '20px', marginBottom: '1rem', width: '100%' }
-      : { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' },
-      tabletStyles: {}, mobileStyles: {}, rawHtml: ''
+      styles: defaultStyles,
+      tabletStyles: {}, mobileStyles: {}, rawHtml: '',
+      attributes: {}
     });
 
     setLayoutItems(prev => [...prev, ...newItems]);
@@ -853,7 +886,8 @@ onValue(profileRef, (snapshot) => {
             parentId: safeParentId,
             src: updates.src !== undefined ? updates.src : item.src,
             href: updates.href !== undefined ? updates.href : item.href,
-            rawHtml: updates.rawHtml !== undefined ? updates.rawHtml : item.rawHtml
+            rawHtml: updates.rawHtml !== undefined ? updates.rawHtml : item.rawHtml,
+            attributes: updates.attributes !== undefined ? updates.attributes : (item.attributes || {}) // ✨ NEW: Save attributes!
           };
         }
         return item;
@@ -887,92 +921,6 @@ onValue(profileRef, (snapshot) => {
     });
   };
 
-  if (sharedViewData) {
-    const sharedLayouts = typeof sharedViewData.layouts === 'string' ? JSON.parse(sharedViewData.layouts) : (sharedViewData.layouts || []);
-    const sharedCode = generateCanvasHtml(sharedLayouts);
-
-    const handleImportShared = () => {
-      const user = auth.currentUser;
-      if (!user) {
-        alert("Please sign in or create a free account to clone this amazing project to your own dashboard! 🚀");
-        navigate('/authentication');
-        return;
-      }
-      
-      if (userRole === 'normal' && workspaces.length >= 3) {
-         alert('Free Plan Limit: You can only have 3 active workspaces. Please delete an existing workspace from your Dashboard before importing this one.');
-         return;
-      }
-      if (userRole === 'pro' && workspaces.length >= 10) {
-         alert('Pro Plan Limit: 10 active workspaces. Please delete an existing workspace before importing.'); return;
-      }
-
-      const privateCount = workspaces.filter(w => !w.isPublic).length;
-      const forcePublic = userRole === 'normal' && privateCount >= 1;
-
-      const newId = generateProjectSlug(sharedViewData.name);
-      const importedProject = {
-        ...sharedViewData,
-        id: newId,
-        name: `${sharedViewData.name} (Imported)`,
-        isPublic: forcePublic, allowCodeView: false, allowDomView: false,
-        createdAt: Date.now(), updatedAt: Date.now()
-      };
-      
-      const dbUpdates = {};
-      dbUpdates[`users/${user.uid}/workspaces/${newId}`] = importedProject;
-      if (forcePublic) {
-         dbUpdates[`publicWorkspaces/${newId}`] = { 
-            ...importedProject, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
-            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-         };
-      }
-      
-      update(ref(db), dbUpdates).then(() => {
-        setSharedViewData(null);
-        setActiveWorkspaceId(newId);
-        navigate(`/builder?u=${userProfile?.username}&ws=${newId}`, { replace: true });
-      });
-    };
-
-    return (
-      <div className="min-h-screen bg-slate-950 flex flex-col font-sans text-slate-200">
-        <nav className="h-16 px-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 shadow-md">
-          <div className="flex items-center gap-4">
-            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(79,70,229,0.4)]"><i className="bi bi-lightning-charge-fill text-white"></i></div>
-            <div>
-              <div className="font-bold text-sm tracking-wide text-white">{sharedViewData.name}</div>
-              <div className="text-[10px] text-slate-500 font-mono mt-0.5">Author: @{new URLSearchParams(location.search).get('u') || 'user'}</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert('Public link copied to clipboard!'); }} className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-lg text-xs transition-colors border border-slate-700 cursor-pointer flex items-center gap-2">
-              <i className="bi bi-share"></i> Share Link
-            </button>
-            <button onClick={handleImportShared} className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition-all shadow-[0_0_15px_rgba(79,70,229,0.3)] cursor-pointer flex items-center gap-2">
-              <i className="bi bi-cloud-download"></i> Clone to My Workspace
-            </button>
-            <div className="w-px h-6 bg-slate-800 mx-1"></div>
-            <button onClick={() => { setSharedViewData(null); navigate('/user/home'); }} className="w-8 h-8 flex items-center justify-center bg-slate-900 hover:bg-red-500/20 text-slate-500 hover:text-red-400 rounded-lg transition-colors border border-slate-800 hover:border-red-500/50 cursor-pointer" title="Exit Viewer">
-              <i className="bi bi-x-lg"></i>
-            </button>
-          </div>
-        </nav>
-        <main className="flex-1 p-4 sm:p-6 overflow-hidden flex flex-col relative w-full">
-          <CanvasContainer 
-            code={sharedCode} 
-            layoutItems={sharedLayouts}
-            allowCodeView={sharedViewData.allowCodeView}
-            allowDomView={sharedViewData.allowDomView}
-            selectedElementId={null}
-            onSelectElementId={()=>{}} onRemoveItem={()=>{}} onDuplicateItem={()=>{}}
-            onApplyCodeChanges={null} 
-          />
-        </main>
-      </div>
-    );
-  }
-
   if (!isDataLoaded) {
     return (
       <div className="min-h-screen bg-slate-950 flex items-center justify-center">
@@ -993,6 +941,8 @@ onValue(profileRef, (snapshot) => {
           onGoHome={() => navigate('/user/home')}
           onOpenAccount={() => setIsAccountModalOpen(true)} 
           onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenWorkspaces={() => setIsWorkspacesModalOpen(true)}
+          onOpenWorkspaceSettings={() => setWorkspaceSettingsTarget(workspaces.find(w => w.id === activeWorkspaceId))}
         />
         
         <main className="p-4 mt-16 max-w-[1600px] w-full mx-auto flex flex-col flex-1 relative">

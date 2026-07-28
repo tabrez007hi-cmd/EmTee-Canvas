@@ -4,11 +4,6 @@ import { auth, db } from '../firebase';
 import { ref, onValue, set, update, get } from 'firebase/database';
 import { useUI } from '../contexts/UIContext';
 
-
-const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
-      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
-      : [];
-      
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState([]);
@@ -17,28 +12,49 @@ export default function AdminDashboard() {
   const [universalMessage, setUniversalMessage] = useState('');
   const [isSendingGlobal, setIsSendingGlobal] = useState(false);
   const { showToast, showConfirm } = useUI();
-  const [userProfile, setUserProfile] = useState(null);
-  const [userRole, setUserRole] = useState('normal');
-
-  const user = auth.currentUser;
-      if (!user) { navigate('/authentication'); return; }
+  
+  // ✨ NEW: Notification Management State
+  const [sentNotifications, setSentNotifications] = useState([]);
 
   const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
-  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
-  : [];
+    ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+    : [];
 
-// Evaluate role (Example from UserHome.jsx)
-const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+  // ✨ NEW: Fetch all notifications across the platform
+  const fetchSentNotifications = async () => {
+    try {
+      const snap = await get(ref(db, 'users'));
+      if (snap.exists()) {
+        const usersObj = snap.val();
+        const notifMap = new Map();
 
-const profileRef = ref(db, `users/${user.uid}/profile`);
-// onValue(profileRef, (snapshot) => {
-//   if (snapshot.exists()) {
-//      const data = snapshot.val();
-//     //  setUserProfile(data);
-//      // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
-//      setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
-//   }
-// });
+        // Loop through all users to extract and group notifications by their ID
+        Object.entries(usersObj).forEach(([uid, userData]) => {
+          if (userData.notifications) {
+            Object.values(userData.notifications).forEach(notif => {
+              if (!notifMap.has(notif.id)) {
+                notifMap.set(notif.id, {
+                  ...notif,
+                  recipients: [uid], // Track who received this exact notification
+                  isGlobal: notif.id.startsWith('global_')
+                });
+              } else {
+                notifMap.get(notif.id).recipients.push(uid);
+              }
+            });
+          }
+        });
+
+        // Sort from newest to oldest
+        const sortedNotifs = Array.from(notifMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+        setSentNotifications(sortedNotifs);
+      } else {
+        setSentNotifications([]);
+      }
+    } catch (e) {
+      console.error("Error fetching notifications:", e);
+    }
+  };
 
   useEffect(() => {
     const user = auth.currentUser;
@@ -57,6 +73,9 @@ const profileRef = ref(db, `users/${user.uid}/profile`);
       else setApprovedUsers([]);
       setLoading(false);
     });
+
+    // ✨ Load notification log on mount
+    fetchSentNotifications();
   }, [navigate]);
 
   const handleApprove = async (req) => {
@@ -114,6 +133,7 @@ const profileRef = ref(db, `users/${user.uid}/profile`);
         
         await set(ref(db, `users/${user.uid}/notifications/${notifId}`), payload);
         showToast(`Notification sent to ${user.username}! 📨`, 'success');
+        fetchSentNotifications(); // ✨ Refresh log
       }
     });
   };
@@ -126,31 +146,83 @@ const profileRef = ref(db, `users/${user.uid}/profile`);
       danger: true,
       confirmText: 'Broadcast',
       onConfirm: async () => {   
-    setIsSendingGlobal(true);
-    try {
-      const snap = await get(ref(db, 'users'));
-      if (snap.exists()) {
-        const usersObj = snap.val();
-        const updates = {};
-        const timestamp = Date.now();
-        const notifId = `global_${timestamp}`;
+        setIsSendingGlobal(true);
+        try {
+          const snap = await get(ref(db, 'users'));
+          if (snap.exists()) {
+            const usersObj = snap.val();
+            const updates = {};
+            const timestamp = Date.now();
+            const notifId = `global_${timestamp}`;
+            
+            Object.keys(usersObj).forEach(uid => {
+              updates[`users/${uid}/notifications/${notifId}`] = {
+                id: notifId, title: 'Global Announcement', message: universalMessage.trim(), createdAt: timestamp, read: false, sender: 'System Admin'
+              };
+            });
+            
+            await update(ref(db), updates);
+            showToast('Universal notification broadcasted successfully! 🌍', 'success');
+            setUniversalMessage('');
+            fetchSentNotifications(); // ✨ Refresh log
+          }
+        } catch(e) {
+          showToast('Failed to send global notification.', 'error');
+        }
+        setIsSendingGlobal(false);
+      }
+    });
+  };
+
+  // ✨ NEW: Edit existing notifications globally
+  const handleEditNotification = (notif) => {
+    showConfirm({
+      title: 'Edit Notification',
+      message: 'Update the message for this notification. This will push the update to everyone who received it.',
+      isPrompt: true,
+      placeholder: notif.message,
+      confirmText: 'Save Changes',
+      onConfirm: async (newMsg) => {
+        if (!newMsg || newMsg.trim() === notif.message) return;
         
-        Object.keys(usersObj).forEach(uid => {
-          updates[`users/${uid}/notifications/${notifId}`] = {
-            id: notifId, title: 'Global Announcement', message: universalMessage.trim(), createdAt: timestamp, read: false, sender: 'System Admin'
-          };
+        const updates = {};
+        notif.recipients.forEach(uid => {
+          updates[`users/${uid}/notifications/${notif.id}/message`] = newMsg.trim();
         });
         
-        await update(ref(db), updates);
-        showToast('Universal notification broadcasted successfully! 🌍', 'success');
-        setUniversalMessage('');
+        try {
+          await update(ref(db), updates);
+          showToast('Notification successfully updated! ✏️', 'success');
+          fetchSentNotifications();
+        } catch (e) {
+          showToast('Failed to update notification.', 'error');
+        }
       }
-    } catch(e) {
-      showToast('Failed to send global notification.', 'error');
-    }
-  }
-});
-    setIsSendingGlobal(false);
+    });
+  };
+
+  // ✨ NEW: Delete existing notifications globally
+  const handleDeleteNotification = (notif) => {
+    showConfirm({
+      title: 'Delete Notification?',
+      message: `This will permanently delete this notification from the inboxes of ${notif.recipients.length} user(s).`,
+      danger: true,
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        const updates = {};
+        notif.recipients.forEach(uid => {
+          updates[`users/${uid}/notifications/${notif.id}`] = null;
+        });
+        
+        try {
+          await update(ref(db), updates);
+          showToast('Notification permanently deleted. 🗑️', 'success');
+          fetchSentNotifications();
+        } catch (e) {
+          showToast('Failed to delete notification.', 'error');
+        }
+      }
+    });
   };
 
   if (loading) return <div className="h-screen bg-slate-950 flex items-center justify-center"><div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>;
@@ -187,6 +259,60 @@ const profileRef = ref(db, `users/${user.uid}/profile`);
                 {isSendingGlobal ? 'Broadcasting...' : 'Send to All Users'}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ✨ NEW: SENT NOTIFICATIONS LOG */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-xl mb-10 overflow-hidden">
+          <div className="bg-slate-950 border-b border-slate-800 p-4 text-white font-bold flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span>Sent Notifications Log</span>
+              <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded text-xs">{sentNotifications.length}</span>
+            </div>
+            <button onClick={fetchSentNotifications} className="text-slate-500 hover:text-white transition-colors flex items-center gap-2 text-xs cursor-pointer bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+               <i className="bi bi-arrow-clockwise"></i> Refresh Log
+            </button>
+          </div>
+          <div className="overflow-x-auto max-h-[400px] custom-scrollbar">
+            <table className="w-full text-left text-sm text-slate-300 relative">
+              <thead className="bg-slate-900 text-xs uppercase text-slate-500 border-b border-slate-800 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="p-4">Type</th>
+                  <th className="p-4">Message Details</th>
+                  <th className="p-4">Recipients</th>
+                  <th className="p-4">Date Sent</th>
+                  <th className="p-4 text-right">Admin Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sentNotifications.length === 0 && <tr><td colSpan="5" className="p-8 text-center text-slate-500"><i className="bi bi-envelope-x text-3xl block mb-2 opacity-30"></i>No notifications sent yet.</td></tr>}
+                {sentNotifications.map(n => (
+                  <tr key={n.id} className="border-b border-slate-800/50 hover:bg-slate-800 transition-colors group">
+                    <td className="p-4 align-middle">
+                      {n.isGlobal ? (
+                        <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-max"><i className="bi bi-globe-americas"></i> Global</span>
+                      ) : (
+                        <span className="bg-slate-800 text-slate-300 border border-slate-700 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 w-max"><i className="bi bi-person-fill"></i> Direct</span>
+                      )}
+                    </td>
+                    <td className="p-4 align-middle max-w-sm">
+                      <div className="font-bold text-white text-xs mb-1">{n.title}</div>
+                      <div className="truncate text-slate-400 text-[11px]" title={n.message}>{n.message}</div>
+                    </td>
+                    <td className="p-4 align-middle text-xs font-mono text-slate-400">
+                      <div className="flex items-center gap-2">
+                        <i className="bi bi-people-fill text-slate-500"></i> {n.recipients.length} User(s)
+                      </div>
+                    </td>
+                    <td className="p-4 align-middle text-xs text-slate-400">{new Date(n.createdAt).toLocaleString()}</td>
+                    <td className="p-4 text-right space-x-2 align-middle">
+                      <button onClick={() => handleEditNotification(n)} className="w-8 h-8 bg-blue-500/10 border border-blue-500/30 hover:bg-blue-500 hover:text-white text-blue-400 rounded-lg transition-all cursor-pointer shadow-sm" title="Edit Message"><i className="bi bi-pencil-fill text-xs"></i></button>
+                      <button onClick={() => handleDeleteNotification(n)} className="w-8 h-8 bg-slate-800 border border-slate-700 hover:bg-red-500 hover:border-red-500 hover:text-white text-slate-400 rounded-lg transition-all cursor-pointer shadow-sm" title="Delete Notification"><i className="bi bi-trash-fill text-xs"></i></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
 

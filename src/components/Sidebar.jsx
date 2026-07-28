@@ -1,21 +1,24 @@
 import React, { useState } from 'react';
-
 import RoleBadge from './RoleBadge';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAddItem, onOpenWorkspaces }) {
-  // Section toggle states[cite: 26]
+  // Section toggle states
   const [isContainersOpen, setIsContainersOpen] = useState(false);
   const [isMediaOpen, setIsMediaOpen] = useState(false);
   const [isElementsOpen, setIsElementsOpen] = useState(false);
   const [isFormsOpen, setIsFormsOpen] = useState(false); 
   const [isListsOpen, setIsListsOpen] = useState(false); 
+  const [isLegacyOpen, setIsLegacyOpen] = useState(false); 
 
-  // Element arrays[cite: 26]
-  const containerElements = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav'];
-  const mediaElements = ['img', 'video', 'iframe', 'canvas', 'svg'];
-  const textElements = ['h1', 'h2', 'h3', 'h4', 'h5', 'p', 'span', 'a', 'b', 'strong', 'i', 'em', 'blockquote', 'code', 'pre'];
-  const formElements = ['form', 'input', 'textarea', 'select', 'button', 'label'];
-  const listElements = ['ul', 'ol', 'li', 'table', 'tr', 'td', 'th'];
+  // ✨ UPGRADED: Massive Element Dictionaries
+  const containerElements = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'summary', 'dialog', 'figure', 'figcaption', 'hgroup'];
+  const textElements = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'span', 'a', 'b', 'strong', 'i', 'em', 'u', 's', 'small', 'big', 'mark', 'del', 'ins', 'sub', 'sup', 'code', 'pre', 'kbd', 'samp', 'var', 'blockquote', 'q', 'cite', 'abbr', 'address', 'bdi', 'bdo', 'dfn', 'ruby', 'rt', 'rp', 'br', 'wbr'];
+  const formElements = ['form', 'input', 'textarea', 'select', 'option', 'optgroup', 'button', 'label', 'datalist', 'output', 'meter', 'progress', 'fieldset', 'legend'];
+  const mediaElements = ['img', 'video', 'audio', 'iframe', 'canvas', 'svg', 'object', 'embed', 'source', 'track', 'area', 'map'];
+  const listElements = ['ul', 'ol', 'li', 'dl', 'dt', 'dd', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th', 'col', 'colgroup', 'caption'];
+  
+  // ✨ NEW: Deprecated and Legacy Elements safely isolated
+  const legacyElements = ['acronym', 'applet', 'basefont', 'center', 'dir', 'font', 'frame', 'frameset', 'isindex', 'marquee', 'nobr', 'noembed', 'strike', 'tt', 'xmp', 'keygen', 'bgsound', 'spacer'];
 
   const handleSectionClick = (isOpen, toggleOpen) => {
     if (isCollapsed) setIsCollapsed(false);
@@ -43,13 +46,13 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
       
       {isOpen && !isCollapsed && (
         <div className="mt-2 mb-4 px-2">
-          {/* ✨ UX FIX: Using a clean grid instead of flex-wrap for perfectly aligned tags */}
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto custom-scrollbar pr-1">
+          <div className="grid grid-cols-2 gap-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
             {elements.map(tag => (
               <button 
                 key={tag} 
                 onClick={() => onAddItem(tag)} 
                 className={`flex items-center justify-center py-2 px-1 font-mono font-bold text-[11px] rounded-lg border transition-all cursor-pointer shadow-sm active:scale-95 ${themeClass.btn}`}
+                title={`Insert <${tag}> tag`}
               >
                 &lt;{tag}&gt;
               </button>
@@ -79,7 +82,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
       <nav className="flex-1 px-3 py-5 overflow-y-auto overflow-x-hidden custom-scrollbar">
         {!isCollapsed && <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4 px-2">Structure Elements</div>}
         
-        {/* Dynamic Element Sections matching dark neon theme with upgraded CSS classes */}
         {renderSection("Containers", "bi-bounding-box", isContainersOpen, setIsContainersOpen, containerElements, 
           { iconBg: 'bg-indigo-500/20', btn: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/30 hover:bg-indigo-500/20 hover:border-indigo-400 hover:text-indigo-200 hover:shadow-[0_0_10px_rgba(79,70,229,0.2)]' }, 
           'text-indigo-400 drop-shadow-[0_0_5px_rgba(79,70,229,0.8)]'
@@ -103,6 +105,12 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
         {renderSection("Text Nodes", "bi-code", isElementsOpen, setIsElementsOpen, textElements, 
           { iconBg: 'bg-slate-700/50', btn: 'text-slate-300 bg-slate-800 border-slate-700 hover:bg-slate-700 hover:text-white hover:border-slate-500 shadow-sm' }, 
           'text-slate-300'
+        )}
+
+        {/* ✨ NEW: Legacy & Deprecated Tag Section */}
+        {renderSection("Legacy / Obsolete", "bi-exclamation-triangle-fill", isLegacyOpen, setIsLegacyOpen, legacyElements, 
+          { iconBg: 'bg-red-500/20', btn: 'text-red-300 bg-red-500/10 border-red-500/30 hover:bg-red-500/20 hover:border-red-400 hover:text-red-200 hover:shadow-[0_0_10px_rgba(239,68,68,0.2)]' }, 
+          'text-red-400 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]'
         )}
       </nav>
 
