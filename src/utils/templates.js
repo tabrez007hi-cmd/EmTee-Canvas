@@ -14,32 +14,49 @@ const generateDynamicCSS = (layoutItems) => {
   let mobileCSS = '';
 
   layoutItems.forEach(item => {
-    // Target raw HTML children by their #ID, standard elements by [data-id]
-    const selector = item.isRawChild ? `#${item.customId}` : `[data-id="${item.id}"]`;
+    const selector = `#${item.customId || item.id}`;
 
+    // Standard Styles
     if (item.styles && Object.keys(item.styles).length > 0) {
       baseCSS += `${selector} { ${serializeStyles(item.styles)} }\n`;
     }
-    if (item.tabletStyles && Object.keys(item.tabletStyles).length > 0) {
-      tabletCSS += `@media (max-width: 1024px) { ${selector} { ${serializeStyles(item.tabletStyles)} } }\n`;
+    if (item.hoverStyles && Object.keys(item.hoverStyles).length > 0) {
+      baseCSS += `${selector}:hover { ${serializeStyles(item.hoverStyles)} }\n`;
     }
-    if (item.mobileStyles && Object.keys(item.mobileStyles).length > 0) {
-      mobileCSS += `@media (max-width: 640px) { ${selector} { ${serializeStyles(item.mobileStyles)} } }\n`;
+
+    // Tablet Styles
+    if ((item.tabletStyles && Object.keys(item.tabletStyles).length > 0) || (item.tabletHoverStyles && Object.keys(item.tabletHoverStyles).length > 0)) {
+      tabletCSS += `@media (max-width: 1024px) {\n`;
+      if (item.tabletStyles && Object.keys(item.tabletStyles).length > 0) tabletCSS += `  ${selector} { ${serializeStyles(item.tabletStyles)} }\n`;
+      if (item.tabletHoverStyles && Object.keys(item.tabletHoverStyles).length > 0) tabletCSS += `  ${selector}:hover { ${serializeStyles(item.tabletHoverStyles)} }\n`;
+      tabletCSS += `}\n`;
+    }
+
+    // Mobile Styles
+    if ((item.mobileStyles && Object.keys(item.mobileStyles).length > 0) || (item.mobileHoverStyles && Object.keys(item.mobileHoverStyles).length > 0)) {
+      mobileCSS += `@media (max-width: 640px) {\n`;
+      if (item.mobileStyles && Object.keys(item.mobileStyles).length > 0) mobileCSS += `  ${selector} { ${serializeStyles(item.mobileStyles)} }\n`;
+      if (item.mobileHoverStyles && Object.keys(item.mobileHoverStyles).length > 0) mobileCSS += `  ${selector}:hover { ${serializeStyles(item.mobileHoverStyles)} }\n`;
+      mobileCSS += `}\n`;
     }
   });
 
   return `
-    ${baseCSS}
-    ${tabletCSS}
-    ${mobileCSS}
-  `;
+${baseCSS}
+${tabletCSS}
+${mobileCSS}
+  `.trim();
 };
 
 export function generateCanvasHtml(layoutItems, isExport = false) {
-  let hoistedStyles = ''; // ✨ Engine variable to collect <style> blocks
+  let hoistedStyles = '';
 
-  const buildNodeHtml = (item) => {
+  const buildNodeHtml = (item, depth = 0) => {
     if (!item || item.isRawChild) return '';
+    
+    const indent = '  '.repeat(depth);
+    const elementId = item.customId || item.id;
+    const idAttr = `id="${elementId}"`;
 
     if (item.rawHtml && item.rawHtml.trim() !== '') {
       let injectedHtml = item.rawHtml;
@@ -49,18 +66,16 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         return ''; 
       });
 
-      if (!injectedHtml.includes(`data-id=`)) {
-        injectedHtml = injectedHtml.replace(/(<[a-zA-Z0-9\-]+)([^>]*>)/, `$1 data-id="${item.id}"$2`);
+      if (!injectedHtml.includes(`id="`)) {
+        injectedHtml = injectedHtml.replace(/(<[a-zA-Z0-9\-]+)([^>]*>)/, `$1 ${idAttr}$2`);
       }
-      return injectedHtml;
+      
+      return injectedHtml.split('\n').map(line => indent + line).join('\n');
     }
     
     const children = layoutItems.filter(child => child.parentId === item.id);
-    const childrenHtml = children.map(child => buildNodeHtml(child)).join('\n');
+    const childrenHtml = children.map(child => buildNodeHtml(child, depth + 1)).join('\n');
     
-    const idAttr = item.customId ? `id="${item.customId}"` : '';
-    
-    // ✨ NEW: Dynamic Attributes Compiler Engine
     let dynamicAttributesStr = '';
     if (item.attributes && Object.keys(item.attributes).length > 0) {
        dynamicAttributesStr = Object.entries(item.attributes)
@@ -70,23 +85,26 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
     }
 
     const tag = item.type;
+    const attrs = `${idAttr} ${dynamicAttributesStr} class="transition-all relative"`.trim();
     
-    // Build the opening tag with all standard and dynamic attributes
-    if (tag === 'img') return `<img data-id="${item.id}" ${idAttr} src="${item.src || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=500&q=80'}" ${dynamicAttributesStr} class="transition-all relative mb-1" alt="Image"/>`;
-    if (tag === 'a') return `<a data-id="${item.id}" ${idAttr} href="${item.href || '#'}" ${dynamicAttributesStr} class="transition-all relative inline-block">${item.text || ''}${childrenHtml}</a>`;
-    if (tag === 'button') return `<button data-id="${item.id}" ${idAttr} ${dynamicAttributesStr} class="transition-all relative">${item.text || ''}${childrenHtml}</button>`;
+    if (tag === 'img') return `${indent}<img ${attrs} src="${item.src || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=500&q=80'}" alt="Image"/>`;
     if (['input', 'br', 'hr', 'source', 'track', 'wbr', 'area', 'embed', 'col'].includes(tag)) {
-        return `<${tag} data-id="${item.id}" ${idAttr} ${dynamicAttributesStr} class="transition-all relative" />`; // Self-closing tags
+        return `${indent}<${tag} ${attrs} />`; 
     }
 
-    return `<${tag} data-id="${item.id}" ${idAttr} ${dynamicAttributesStr} class="transition-all relative">${item.text || ''}${childrenHtml}</${tag}>`;
+    const textContent = item.text ? `${indent}  ${item.text}\n` : '';
+    const innerContent = childrenHtml ? `${childrenHtml}\n` : '';
+    
+    if (!textContent && !innerContent) {
+       return `${indent}<${tag} ${attrs}></${tag}>`;
+    }
+
+    return `${indent}<${tag} ${attrs}>\n${textContent}${innerContent}${indent}</${tag}>`;
   };
 
-  // Only render elements that sit directly on the root of the canvas
   const canvasRootItems = layoutItems.filter(item => item.parentId === null && !item.isRawChild);
-  const componentContentHtml = canvasRootItems.map(item => buildNodeHtml(item)).join('\n');
+  const componentContentHtml = canvasRootItems.map(item => buildNodeHtml(item, 1)).join('\n');
 
-  // A sleek, minimal placeholder if the canvas is utterly empty
   const innerWorkspaceContent = (componentContentHtml || isExport) ? componentContentHtml : `
     <div style="font-family: sans-serif; max-width: 500px; margin: 15vh auto; text-align: center; color: #64748b; pointer-events: none;">
         <svg style="margin: 0 auto 20px auto; width: 64px; height: 64px; opacity: 0.3;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,11 +114,9 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         <p style="font-size: 14px; line-height: 1.6;">Your workspace is a completely blank HTML document. Drag an element from the sidebar to begin structuring your DOM Tree from scratch.</p>
     </div>`;
 
-  // Builder-specific CSS is completely isolated
   const builderCss = isExport ? '' : `
-        [data-id] { transition: outline 0.1s ease-in-out, background-color 0.2s; }
+        * { transition: outline 0.1s ease-in-out; }
         .selected-element { outline: 2px solid #6366f1 !important; outline-offset: -2px; }
-        img[data-id] { object-fit: cover; max-width: 100%; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
@@ -118,11 +134,11 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         ${!isExport ? 'html, body { min-height: 100vh; background-color: transparent; }' : ''}
-        ${builderCss}
-        ${generateDynamicCSS(layoutItems)}
+${builderCss}
+${generateDynamicCSS(layoutItems)}
         
         /* User Custom CSS (Hoisted) */
-        ${hoistedStyles}
+${hoistedStyles}
     </style>
 </head>
 <body class="m-0 p-0 ${!isExport ? 'selection:bg-indigo-500/30' : ''}">

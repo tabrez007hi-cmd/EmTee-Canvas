@@ -69,9 +69,7 @@ export default function Builder() {
     });
     
     const cleanedStyles = extractedStyles
-      .replace(/\[data-id\]\s*\{[^}]+\}/g, '')
       .replace(/\.selected-element\s*\{[^}]+\}/g, '')
-      .replace(/img\[data-id\]\s*\{[^}]+\}/g, '')
       .replace(/::-webkit-scrollbar[^{]*\{[^}]+\}/g, '')
       .replace(/\*\s*\{[^}]+\}/g, '')
       .replace(/html,\s*body\s*\{[^}]+\}/g, '')
@@ -102,7 +100,8 @@ export default function Builder() {
           const el = doc.getElementById(item.customId);
           if (el) item.rawHtml = el.outerHTML;
         } else {
-          const el = doc.querySelector(`[data-id="${item.id}"]`);
+          // ✨ FIX: We now scan elements purely by their clean HTML ID!
+          const el = doc.getElementById(item.customId || item.id);
           if (el) {
             if (item.type === 'img' && el.getAttribute('src')) item.src = el.getAttribute('src');
             if (item.type === 'a' && el.getAttribute('href')) item.href = el.getAttribute('href');
@@ -149,14 +148,14 @@ export default function Builder() {
              if (privSnap.exists()) {
                 const sharedWs = privSnap.val();
                 if (!sharedWs.isPublic) {
-                  alert('Access Denied 🔒\nThis workspace is private.');
+                  showToast('Access Denied 🔒\nThis workspace is private.', 'error');
                   navigate(user ? '/user/home' : '/authentication', { replace: true });
                 } else {
                   setSharedViewData({ owner: urlOwner, ...sharedWs });
                   setIsDataLoaded(true); 
                 }
              } else {
-                alert('Error ❌\nShared workspace not found.');
+                showToast('Error ❌\nShared workspace not found.', 'error');
                 navigate(user ? '/user/home' : '/authentication', { replace: true });
              }
           });
@@ -173,16 +172,16 @@ export default function Builder() {
   ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
   : [];
 
-const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+    const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
-const profileRef = ref(db, `users/${user.uid}/profile`);
-onValue(profileRef, (snapshot) => {
-  if (snapshot.exists()) {
-     const data = snapshot.val();
-     setUserProfile(data);
-     setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
-  }
-});
+    const profileRef = ref(db, `users/${user.uid}/profile`);
+    onValue(profileRef, (snapshot) => {
+      if (snapshot.exists()) {
+         const data = snapshot.val();
+         setUserProfile(data);
+         setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+      }
+    });
 
     const workspacesRef = ref(db, `users/${user.uid}/workspaces`);
     onValue(workspacesRef, (snapshot) => {
@@ -312,38 +311,37 @@ onValue(profileRef, (snapshot) => {
       return;
     }
 
-
     showConfirm({
       title: 'New Workspace',
       message: 'Enter a name for your new project:',
       isPrompt: true,
       confirmText: 'Create',
       onConfirm: (name) => {
-    if (!name || !name.trim()) return;
+        if (!name || !name.trim()) return;
 
-    const privateCount = workspaces.filter(w => !w.isPublic).length;
-    const forcePublic = userRole === 'normal' && privateCount >= 1;
+        const privateCount = workspaces.filter(w => !w.isPublic).length;
+        const forcePublic = userRole === 'normal' && privateCount >= 1;
 
-    const user = auth.currentUser;
-    const newId = generateProjectSlug(name);
-    const newWS = { id: newId, name: name.trim(), layouts: '[]', isPublic: forcePublic, allowCodeView: false, allowDomView: false, createdAt: Date.now(), updatedAt: Date.now() };
-    
-    const dbUpdates = {};
-    dbUpdates[`users/${user.uid}/workspaces/${newId}`] = newWS;
-    
-    if (forcePublic) {
-       dbUpdates[`publicWorkspaces/${newId}`] = { 
-          ...newWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
-          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-       };
-    }
+        const user = auth.currentUser;
+        const newId = generateProjectSlug(name);
+        const newWS = { id: newId, name: name.trim(), layouts: '[]', isPublic: forcePublic, allowCodeView: false, allowDomView: false, createdAt: Date.now(), updatedAt: Date.now() };
+        
+        const dbUpdates = {};
+        dbUpdates[`users/${user.uid}/workspaces/${newId}`] = newWS;
+        
+        if (forcePublic) {
+           dbUpdates[`publicWorkspaces/${newId}`] = { 
+              ...newWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+              authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+           };
+        }
 
-    update(ref(db), dbUpdates).then(() => {
-      setActiveWorkspaceId(newId);
-      showToast('Workspace created successfully!', 'success');
+        update(ref(db), dbUpdates).then(() => {
+          setActiveWorkspaceId(newId);
+          showToast('Workspace created successfully!', 'success');
+        });
+      }
     });
-  }
-});
   };
 
   const handleDeleteWorkspace = (id) => {
@@ -452,12 +450,12 @@ onValue(profileRef, (snapshot) => {
     setIsInspectorMinimized(false); 
   };
 
-  // ✨ UPGRADED: Massive styling engine mapping specifically tailored properties to HTML tags!
   const handleAddItem = (type) => {
     const newItems = [];
-    const parentId = `element_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    
+    // ✨ FIX: Generates an ultra-short, completely valid HTML ID (e.g. e1a2b3)
+    const parentId = `e${Math.random().toString(36).substr(2, 6)}`;
 
-    // Tag Dictionaries
     const isContainer = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup'].includes(type);
     const isInput = ['input', 'textarea', 'select', 'datalist', 'output', 'meter', 'progress'].includes(type);
     const isMedia = ['img', 'video', 'audio', 'iframe', 'canvas', 'svg', 'object', 'embed'].includes(type);
@@ -468,19 +466,16 @@ onValue(profileRef, (snapshot) => {
     const hasSrc = ['img', 'video', 'audio', 'iframe', 'embed', 'source', 'track'].includes(type);
     const hasHref = ['a', 'area', 'base', 'link'].includes(type);
 
-    // Smart Text Injection (avoids putting text inside empty elements like <br> or <hr>)
     let defaultText = '';
     const emptyElements = ['br', 'wbr', 'hr', 'area', 'col', 'source', 'track', 'img', 'input', 'embed', 'keygen', 'spacer'];
     if (!isMedia && !isInput && !isContainer && !isList && !isListItem && !emptyElements.includes(type)) {
        defaultText = isLink ? 'Link Text' : isBtn ? 'Button' : `${type.toUpperCase()} Element`;
     }
 
-    // ✨ The Intelligence Core: Translates the tag into its native CSS equivalent
     let defaultStyles = { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' };
 
     if (isContainer) defaultStyles = { minHeight: '50px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' };
     
-    // Headings
     if (type === 'h1') defaultStyles = { ...defaultStyles, fontSize: '2.5rem', fontWeight: '800', lineHeight: '1.2' };
     if (type === 'h2') defaultStyles = { ...defaultStyles, fontSize: '2rem', fontWeight: '700', lineHeight: '1.3' };
     if (type === 'h3') defaultStyles = { ...defaultStyles, fontSize: '1.75rem', fontWeight: '700', lineHeight: '1.4' };
@@ -488,7 +483,6 @@ onValue(profileRef, (snapshot) => {
     if (type === 'h5') defaultStyles = { ...defaultStyles, fontSize: '1.25rem', fontWeight: '600' };
     if (type === 'h6') defaultStyles = { ...defaultStyles, fontSize: '1rem', fontWeight: '600' };
     
-    // Formatting & Text nodes
     if (type === 'p') defaultStyles = { ...defaultStyles, fontSize: '1rem', lineHeight: '1.6' };
     if (type === 'strong' || type === 'b') defaultStyles = { ...defaultStyles, fontWeight: 'bold' };
     if (type === 'em' || type === 'i') defaultStyles = { ...defaultStyles, fontStyle: 'italic' };
@@ -500,17 +494,14 @@ onValue(profileRef, (snapshot) => {
     if (type === 'a') defaultStyles = { ...defaultStyles, color: '#3b82f6', textDecoration: 'underline', cursor: 'pointer' };
     if (type === 'hr') defaultStyles = { width: '100%', borderTop: '1px solid #cbd5e1', margin: '16px 0' };
     
-    // Inputs & Forms
     if (isBtn) defaultStyles = { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' };
     if (isInput) defaultStyles = { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' };
     
-    // Media & Visual
     if (type === 'img') defaultStyles = { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' };
     if (type === 'video' || type === 'iframe' || type === 'canvas' || type === 'object') defaultStyles = { width: '100%', minHeight: '200px', backgroundColor: '#e2e8f0', borderRadius: '8px' };
     if (type === 'audio') defaultStyles = { width: '100%', height: '54px' };
     if (type === 'svg') defaultStyles = { minHeight: '100px', width: '100px', backgroundColor: '#f1f5f9' };
     
-    // Tables & Lists
     if (isList) defaultStyles = { paddingLeft: '20px', marginBottom: '1rem', width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' };
     if (type === 'table') defaultStyles = { width: '100%', borderCollapse: 'collapse', backgroundColor: '#ffffff', border: '1px solid #e2e8f0' };
 
@@ -522,8 +513,9 @@ onValue(profileRef, (snapshot) => {
       placeholder: isInput ? 'Enter data here...' : null,
       inputType: type === 'input' ? 'text' : null,
       styles: defaultStyles,
-      tabletStyles: {}, mobileStyles: {}, rawHtml: '',
-      attributes: {}
+      tabletStyles: {}, mobileStyles: {}, 
+      hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {}, // ✨ NEW: Initialize Hover states!
+      rawHtml: '', attributes: {}
     });
 
     setLayoutItems(prev => [...prev, ...newItems]);
@@ -586,7 +578,7 @@ onValue(profileRef, (snapshot) => {
     const newRootCustomId = `${baseCustomId}_copy${count}`;
 
     const duplicateRecursive = (item, parentId, isRoot = false) => {
-      const newId = `element_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      const newId = `e${Math.random().toString(36).substr(2, 6)}`;
       idMap.set(item.id, newId);
 
       newItems.push({
@@ -717,49 +709,45 @@ onValue(profileRef, (snapshot) => {
           targetElement.style.outline = ''; targetElement.style.outlineOffset = ''; targetElement.style.cursor = '';
         }
 
-        let targetId = targetElement.getAttribute('data-id');
-        let customId = targetElement.getAttribute('id');
-        let needsStateUpdate = false;
-        let parentDataIdToUpdate = null;
-        let updatedHtml = null;
+        // ✨ FIX: Robust ID mapping completely reliant on Native HTML IDs
+        let targetId = targetElement.getAttribute('id');
+        let matchedItem = layoutItems.find(i => (i.customId || i.id) === targetId);
 
-        if (!targetId && !customId) {
-          customId = `emtee_${Math.random().toString(36).substr(2, 6)}`;
-          targetElement.setAttribute('id', customId);
-          
-          const rootRawNode = targetElement.closest('[data-id]');
-          if (rootRawNode) {
-            parentDataIdToUpdate = rootRawNode.getAttribute('data-id');
-            updatedHtml = rootRawNode.outerHTML; 
-            needsStateUpdate = true;
-          }
+        if (!matchedItem) {
+           const newId = `e${Math.random().toString(36).substr(2, 6)}`;
+           targetElement.setAttribute('id', newId);
+           
+           let parentNode = targetElement.parentElement;
+           let parentItem = null;
+           
+           while (parentNode && parentNode.tagName !== 'BODY') {
+               const pid = parentNode.getAttribute('id');
+               parentItem = layoutItems.find(i => (i.customId || i.id) === pid);
+               if (parentItem) break;
+               parentNode = parentNode.parentElement;
+           }
+
+           if (parentItem) {
+               setLayoutItems(prev => {
+                   const next = [...prev];
+                   const pIndex = next.findIndex(i => i.id === parentItem.id);
+                   if (pIndex > -1) {
+                       next[pIndex] = { ...next[pIndex], rawHtml: parentNode.outerHTML };
+                   }
+                   next.push({
+                       id: newId, type: targetElement.tagName.toLowerCase(),
+                       customId: '', parentId: parentItem.id, isRawChild: true,
+                       text: targetElement.innerHTML || '', src: targetElement.getAttribute('src') || '',
+                       href: targetElement.getAttribute('href') || '', styles: {}, tabletStyles: {}, mobileStyles: {}, rawHtml: '', attributes: {}
+                   });
+                   return next;
+               });
+               handleSelectElement(newId);
+           }
+        } else {
+           handleSelectElement(matchedItem.id);
         }
 
-        if (!targetId && customId) {
-          targetId = `raw_${customId}`;
-          setLayoutItems(prev => {
-            let nextState = [...prev];
-            if (needsStateUpdate && parentDataIdToUpdate) {
-              nextState = nextState.map(item => item.id === parentDataIdToUpdate ? { ...item, rawHtml: updatedHtml } : item);
-            }
-            if (!nextState.find(item => item.id === targetId)) {
-              nextState.push({
-                id: targetId,
-                type: targetElement.tagName.toLowerCase(),
-                customId: customId,
-                parentId: parentDataIdToUpdate || null, 
-                isRawChild: true,
-                text: targetElement.innerHTML || '', 
-                src: targetElement.getAttribute('src') || '',
-                href: targetElement.getAttribute('href') || '',
-                styles: {}, tabletStyles: {}, mobileStyles: {}, rawHtml: ''
-              });
-            }
-            return nextState;
-          });
-        }
-
-        handleSelectElement(targetId || customId); 
         setIsInspectMode(false); 
       };
 
@@ -781,7 +769,7 @@ onValue(profileRef, (snapshot) => {
       iframe.removeEventListener('load', handleIframeInteraction);
       if (innerCleanup) innerCleanup();
     };
-  }, [currentCompiledCode, isInspectMode]);
+  }, [currentCompiledCode, isInspectMode, layoutItems]);
 
   useEffect(() => {
     const iframe = iframeRef.current;
@@ -812,10 +800,9 @@ onValue(profileRef, (snapshot) => {
       const item = layoutItems.find(i => i.id === selectedElementId);
       let targetNode = null;
 
-      if (item && item.isRawChild) {
-         targetNode = doc.querySelector(`#${item.customId}`);
-      } else {
-         targetNode = doc.querySelector(`[data-id="${selectedElementId}"]`);
+      if (item) {
+         // ✨ FIX: Outlining relies strictly on native ID selectors now
+         targetNode = doc.getElementById(item.customId || item.id);
       }
 
       if (targetNode) {
@@ -882,12 +869,15 @@ onValue(profileRef, (snapshot) => {
             styles: updates.styles, 
             tabletStyles: updates.tabletStyles,
             mobileStyles: updates.mobileStyles,
+            hoverStyles: updates.hoverStyles,               // ✨ NEW: Map Hover updates
+            tabletHoverStyles: updates.tabletHoverStyles,   // ✨ NEW: Map Hover updates
+            mobileHoverStyles: updates.mobileHoverStyles,   // ✨ NEW: Map Hover updates
             customId: updates.customId, 
             parentId: safeParentId,
             src: updates.src !== undefined ? updates.src : item.src,
             href: updates.href !== undefined ? updates.href : item.href,
             rawHtml: updates.rawHtml !== undefined ? updates.rawHtml : item.rawHtml,
-            attributes: updates.attributes !== undefined ? updates.attributes : (item.attributes || {}) // ✨ NEW: Save attributes!
+            attributes: updates.attributes !== undefined ? updates.attributes : (item.attributes || {})
           };
         }
         return item;
@@ -900,7 +890,7 @@ onValue(profileRef, (snapshot) => {
           if (parent.rawHtml) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(parent.rawHtml, 'text/html');
-            const targetEl = doc.getElementById(oldItem.customId);
+            const targetEl = doc.getElementById(oldItem.customId || oldItem.id); 
             
             if (targetEl) {
               if (updates.text !== oldItem.text) targetEl.innerHTML = updates.text;
@@ -908,10 +898,7 @@ onValue(profileRef, (snapshot) => {
               if (updates.src !== undefined && updates.src !== oldItem.src) targetEl.setAttribute('src', updates.src);
               if (updates.href !== undefined && updates.href !== oldItem.href) targetEl.setAttribute('href', updates.href);
 
-              nextItems[parentIndex] = {
-                ...parent,
-                rawHtml: doc.body.innerHTML
-              };
+              nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML };
             }
           }
         }
@@ -953,7 +940,6 @@ onValue(profileRef, (snapshot) => {
             selectedElementId={selectedElementId} 
             onSelectElementId={handleSelectElement} 
             onRemoveItem={handleRemoveItem} 
-            onDuplicateItem={handleDuplicateItem}
             onApplyCodeChanges={handleApplyCodeChanges} 
           />
           <InspectorPanel isInspectMode={isInspectMode} setIsInspectMode={setIsInspectMode} selectedElementId={selectedElementId} layoutItems={layoutItems} onApplyChanges={handleApplyStyleChanges} isMinimized={isInspectorMinimized} setIsMinimized={setIsInspectorMinimized} onMoveItem={handleMoveItem} />
@@ -972,7 +958,16 @@ onValue(profileRef, (snapshot) => {
         onOpenWorkspaceSettings={setWorkspaceSettingsTarget} onDuplicateWorkspace={handleDuplicateWorkspace}
       />
 
-      <WorkspaceSettingsModal isOpen={!!workspaceSettingsTarget} onClose={() => setWorkspaceSettingsTarget(null)} workspace={workspaceSettingsTarget} onSave={handleSaveWorkspaceSettings} userRole={userRole} workspaces={workspaces} />
+      <WorkspaceSettingsModal 
+        isOpen={!!workspaceSettingsTarget} 
+        onClose={() => setWorkspaceSettingsTarget(null)} 
+        workspace={workspaceSettingsTarget} 
+        onSave={handleSaveWorkspaceSettings} 
+        userRole={userRole} 
+        workspaces={workspaces} 
+        onDuplicateWorkspace={handleDuplicateWorkspace} 
+        onDeleteWorkspace={handleDeleteWorkspace} 
+      />
       <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} code={generateCanvasHtml(layoutItems, true)} projectName={activeWorkspaceName} userRole={userRole} />
     </div>
   );

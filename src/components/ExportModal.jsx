@@ -13,7 +13,7 @@ export default function ExportModal({ isOpen, onClose, code, projectName, userRo
 
   if (!isOpen) return null;
 
-const canDownload = userRole === 'pro' || userRole === 'advance';
+const canDownload = userRole === 'pro' || userRole === 'advance' || userRole === 'admin';
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);

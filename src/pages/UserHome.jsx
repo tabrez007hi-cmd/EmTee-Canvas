@@ -11,6 +11,7 @@ import DashboardTemplates from '../components/DashboardTemplates';
 import DashboardExplore from '../components/DashboardExplore';
 import NotificationBell from '../components/NotificationBell';
 
+import { useUI } from '../contexts/UIContext'; // ✨ NEW: Imported UI Context
 import { generateCanvasHtml } from '../utils/templates'; 
 import { systemTemplates } from '../utils/systemTemplates'; 
 
@@ -23,6 +24,8 @@ const generateProjectSlug = (name) => {
 export default function UserHome() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast, showConfirm } = useUI(); // ✨ NEW: Initialized UI Hooks
+  
   const activeTab = location.pathname.split('/').pop() || 'home'; 
 
   const [workspaces, setWorkspaces] = useState([]);
@@ -49,23 +52,20 @@ export default function UserHome() {
     const user = auth.currentUser;
     if (!user) { navigate('/authentication'); return; }
 
-    // 🔐 Parse emails from the .env file dynamically
-const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
-  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
-  : [];
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
+      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
+      : [];
 
-// Evaluate role (Example from UserHome.jsx)
-const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+    const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
-const profileRef = ref(db, `users/${user.uid}/profile`);
-onValue(profileRef, (snapshot) => {
-  if (snapshot.exists()) {
-     const data = snapshot.val();
-     setUserProfile(data);
-     // Assign 'admin' if email matches .env, otherwise fallback to database role or 'normal'
-     setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
-  }
-});
+    const profileRef = ref(db, `users/${user.uid}/profile`);
+    onValue(profileRef, (snapshot) => {
+      if (snapshot.exists()) {
+         const data = snapshot.val();
+         setUserProfile(data);
+         setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+      }
+    });
 
     onValue(ref(db, `users/${user.uid}/workspaces`), (snapshot) => {
       if (snapshot.exists()) {
@@ -162,8 +162,18 @@ onValue(profileRef, (snapshot) => {
     await update(ref(db), updates);
   };
 
+  // ✨ UX FIX: Replaced native confirm with showConfirm
   const handleDeleteTemplate = async (templateId) => {
-    if (window.confirm('Are you sure you want to permanently delete this template?')) await set(ref(db, `templates/${templateId}`), null);
+    showConfirm({
+      title: 'Delete Template?',
+      message: 'Are you sure you want to permanently delete this template from the global directory?',
+      danger: true,
+      confirmText: 'Delete',
+      onConfirm: async () => {
+        await set(ref(db, `templates/${templateId}`), null);
+        showToast('Template deleted successfully. 🗑️', 'success');
+      }
+    });
   };
 
   const handleSaveWorkspaceSettings = async (id, updates, swapId = null) => {
@@ -214,10 +224,73 @@ onValue(profileRef, (snapshot) => {
     try {
       await update(ref(db), dbUpdates);
       setWorkspaceSettingsTarget(null);
+      showToast('Settings saved successfully!', 'success'); // ✨ UX Fix
     } catch (err) {
-      alert("Error saving settings.");
+      showToast('Error saving settings.', 'error'); // ✨ UX Fix
     }
   };
+
+  // ✨ UX FIX: Replaced native confirm with showConfirm
+  const handleDeleteWorkspace = (id) => {
+    if (workspaces.length <= 1) return;
+    
+    showConfirm({
+      title: 'Delete Workspace?',
+      message: 'Are you absolutely sure you want to drop this workspace project permanently? 🚨',
+      danger: true,
+      confirmText: 'Delete',
+      onConfirm: () => {
+        const user = auth.currentUser;
+        const dbUpdates = {};
+        dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
+        dbUpdates[`publicWorkspaces/${id}`] = null;
+        update(ref(db), dbUpdates);
+        showToast('Workspace deleted permanently. 🗑️', 'success');
+      }
+    });
+  };
+
+  // ✨ UX FIX: Replaced native alert with showToast
+  const handleDuplicateWorkspace = (id) => {
+      if (userRole === 'normal' && workspaces.length >= 3) {
+        showToast('Free Plan Limit: You can only have 3 active workspaces.', 'error');
+        return;
+      }
+      if (userRole === 'pro' && workspaces.length >= 10) {
+        showToast('Pro Plan Limit: You can only have 10 active workspaces.', 'error');
+        return;
+      }
+  
+      const match = workspaces.find(w => w.id === id);
+      if (!match) return;
+  
+      const privateCount = workspaces.filter(w => !w.isPublic).length;
+      const forcePublic = userRole === 'normal' && privateCount >= 1;
+  
+      const user = auth.currentUser;
+      const copyId = generateProjectSlug(`${match.name} Copy`);
+      const clonedWS = {
+        ...match,
+        id: copyId,
+        name: `${match.name} (Copy)`,
+        isPublic: forcePublic, allowCodeView: false, allowDomView: false,
+        createdAt: Date.now(), updatedAt: Date.now()
+      };
+      
+      const dbUpdates = {};
+      dbUpdates[`users/${user.uid}/workspaces/${copyId}`] = clonedWS;
+      
+      if (forcePublic) {
+         dbUpdates[`publicWorkspaces/${copyId}`] = { 
+            ...clonedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
+            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
+         };
+      }
+  
+      update(ref(db), dbUpdates).then(() => {
+        showToast('Workspace duplicated successfully!', 'success');
+      });
+    };
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -235,10 +308,8 @@ onValue(profileRef, (snapshot) => {
   return (
     <div className="h-screen w-full bg-slate-950 flex overflow-hidden font-sans text-slate-200">
       
-      {/* ✨ FIX: Increased z-[60] to prevent the button from hiding under the top navigation */}
       <aside className={`relative h-full bg-slate-900 border-r border-slate-800 hidden md:flex flex-col z-[60] shrink-0 transition-all duration-300 ${isSidebarCollapsed ? 'w-[72px]' : 'w-72'}`}>
         
-        {/* Collapse Toggle Button */}
         <button 
           onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
           className="absolute top-5 -right-3.5 z-50 bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:border-indigo-500 rounded-full w-7 h-7 flex items-center justify-center shadow-[0_0_10px_rgba(0,0,0,0.5)] cursor-pointer transition-all"
@@ -408,7 +479,16 @@ onValue(profileRef, (snapshot) => {
       )}
 
       <AccountModal isOpen={isAccountModalOpen} onClose={() => setIsAccountModalOpen(false)} userProfile={userProfile} />
-      <WorkspaceSettingsModal isOpen={!!workspaceSettingsTarget} onClose={() => setWorkspaceSettingsTarget(null)} workspace={workspaceSettingsTarget} onSave={handleSaveWorkspaceSettings} userRole={userRole} workspaces={workspaces} />
+      <WorkspaceSettingsModal 
+        isOpen={!!workspaceSettingsTarget} 
+        onClose={() => setWorkspaceSettingsTarget(null)} 
+        workspace={workspaceSettingsTarget} 
+        onSave={handleSaveWorkspaceSettings} 
+        userRole={userRole} 
+        workspaces={workspaces} 
+        onDuplicateWorkspace={handleDuplicateWorkspace} 
+        onDeleteWorkspace={handleDeleteWorkspace} 
+      />
     </div>
   );
 }
