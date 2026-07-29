@@ -2,25 +2,17 @@ import React, { useState } from 'react';
 import { useUI } from '../contexts/UIContext';
 import RoleBadge from './RoleBadge';
 
-export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, handleClone, navigate }) {
+export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, handleClone, navigate, userProfile }) {
   const [searchQuery, setSearchQuery] = useState('');
   const { showToast, showConfirm } = useUI();
 
   const filtered = exploreWorkspaces.filter(ws => ws.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  // Local handler to construct and copy the share link
   const handleShare = (e, ws) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}/share?u=${ws.authorName}&owner=${ws.authorId}&ws=${ws.id}`;
     navigator.clipboard.writeText(shareUrl);
     showToast('Project link copied to clipboard! 🔗', 'success');
-  };
-
-  // Helper function to render a minimal, creative role indicator
-  const renderRoleBadge = (role) => {
-    if (role === 'developer') return <span className="w-2 h-2 rounded-full bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)] animate-pulse" title="Developer Tier"></span>;
-    if (role === 'pro') return <span className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.8)]" title="Pro Tier"></span>;
-    return <span className="w-2 h-2 rounded-full bg-slate-500" title="Normal Tier"></span>;
   };
 
   return (
@@ -57,10 +49,9 @@ export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, 
               className="group bg-slate-900/40 backdrop-blur-md border border-slate-800 rounded-2xl p-5 hover:bg-slate-800/60 hover:border-indigo-500/50 hover:shadow-[0_10px_40px_rgba(79,70,229,0.15)] transition-all duration-300 cursor-pointer flex flex-col relative overflow-hidden"
             >
               
-              {/* Header section: Author Profile & Badges */}
               <div className="flex items-start justify-between mb-6 relative z-10">
-                <div className="flex items-center gap-3">
-                   <div className="relative">
+                <div className="flex items-center gap-3 min-w-0">
+                   <div className="relative shrink-0">
                      {ws.authorPhoto ? (
                        <img src={ws.authorPhoto} className="w-10 h-10 rounded-full border-2 border-slate-700 object-cover shadow-md group-hover:border-indigo-500/50 transition-colors" alt="Author" />
                      ) : (
@@ -70,25 +61,25 @@ export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, 
                      )}
                    </div>
                    
-                  <div className="flex flex-col justify-center gap-0.5">
-   <div className="group-hover:text-indigo-300 transition-colors">
-     <RoleBadge role={ws.authorRole} username={ws.authorName} prefix="@" />
-   </div>
-   <span className="text-[9px] text-slate-500 font-mono tracking-wider">{new Date(ws.updatedAt || ws.createdAt).toLocaleDateString()}</span>
-</div>
+                  <div className="flex flex-col justify-center gap-0.5 min-w-0">
+                    <div className="group-hover:text-indigo-300 transition-colors truncate">
+                      {/* ✨ FIX 1: Accurately mapping author data instead of current user data! */}
+                      <RoleBadge role={ws.authorRole} username={ws.authorName} prefix="@" />
+                    </div>
+                    <span className="text-[9px] text-slate-500 font-mono tracking-wider">{new Date(ws.updatedAt || ws.createdAt).toLocaleDateString()}</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Body section: Workspace Title */}
               <div className="relative z-10 flex-1 flex flex-col justify-center mb-6 px-1">
-                <h3 className="font-extrabold text-white text-lg leading-tight mb-2 line-clamp-2 transition-colors">{ws.name}</h3>
+                {/* ✨ FIX 2: Softened typography from extrabold/text-lg to semibold/text-base */}
+                <h3 className="font-semibold text-white text-base leading-snug mb-3 line-clamp-2 transition-colors">{ws.name}</h3>
                 <div className="flex items-center gap-3 text-[10px] text-slate-400 font-semibold tracking-wide">
                   <span className="flex items-center gap-1.5"><i className="bi bi-diagram-3 text-indigo-400"></i> {ws.allowDomView ? 'DOM Exposed' : 'Layout'}</span>
                   <span className="flex items-center gap-1.5"><i className="bi bi-code-slash text-emerald-400"></i> {ws.allowCodeView ? 'Code Exposed' : 'Canvas'}</span>
                 </div>
               </div>
 
-              {/* Footer section: Actions */}
               <div className="relative z-10 flex items-center justify-between border-t border-slate-800/60 pt-4 mt-auto">
                 <button 
                   onClick={(e) => handleToggleLike(e, ws.id, ws.authorId, ws.isLikedByMe)} 
@@ -111,7 +102,6 @@ export default function DashboardExplore({ exploreWorkspaces, handleToggleLike, 
                 </div>
               </div>
 
-              {/* Background abstract decoration for modern feel */}
               <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 rounded-bl-full pointer-events-none -mr-10 -mt-10 transition-transform duration-500 group-hover:scale-110"></div>
             </div>
           ))}

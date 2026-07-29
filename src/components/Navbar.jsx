@@ -4,6 +4,7 @@ import { signOut } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 
 import NotificationBell from './NotificationBell';
+import RoleBadge from './RoleBadge'; // ✨ FIX 3: Implemented RoleBadge everywhere!
 
 export default function Navbar({ isCollapsed, userProfile, activeWorkspaceName, onSaveWorkspace, onOpenExport, onGoHome, onOpenAccount, onOpenSettings }) {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function Navbar({ isCollapsed, userProfile, activeWorkspaceName, 
   return (
     <nav 
       className="fixed top-0 right-0 z-30 flex h-16 bg-slate-900 border-b border-slate-800 shadow-md items-center justify-between px-6 transition-all duration-300 text-slate-200"
-      style={{ left: isCollapsed ? '4rem' : '16rem' }}
+      style={{ left: isCollapsed ? '4.5rem' : '18rem' }}
     >
       <div className="min-w-0 max-w-[40%]">
         <span className="font-bold text-white text-sm sm:text-base truncate block" title={activeWorkspaceName}>
@@ -57,20 +58,21 @@ export default function Navbar({ isCollapsed, userProfile, activeWorkspaceName, 
 
         <div className="w-px h-6 bg-slate-800"></div>
 
-        {/* Settings Button */}
         <button onClick={onOpenSettings} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-full transition-colors cursor-pointer" title="Workspace Settings">
           <i className="bi bi-gear-fill text-lg"></i>
         </button>
 
-        {/* User Profile Button */}
-       <button onClick={onOpenAccount} className="flex items-center gap-2 hover:bg-slate-800 px-2 py-1 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-700">
-              <span className="text-sm font-semibold text-slate-300 hidden lg:block">{userProfile?.username || 'Advance'}</span>
-              {userProfile?.photoURL && !imgError ? (
-                <img src={userProfile.photoURL} alt="User" onError={() => setImgError(true)} className="h-8 w-8 rounded-full object-cover border border-slate-700" />
-              ) : (
-                <div className="h-8 w-8 bg-slate-800 rounded-full flex items-center justify-center text-indigo-400 border border-slate-700 shadow-sm"><i className="bi bi-person-fill text-lg mt-1"></i></div>
-              )}
-            </button>
+        <button onClick={onOpenAccount} className="flex items-center gap-2 hover:bg-slate-800 px-2 py-1 rounded-lg transition-colors cursor-pointer border border-transparent hover:border-slate-700">
+           {/* ✨ FIX 3: Replaced standard text with RoleBadge for consistent Admin styling */}
+           <div className="hidden lg:block">
+             <RoleBadge role={userProfile?.role} username={userProfile?.username || 'Advance'} />
+           </div>
+           {userProfile?.photoURL && !imgError ? (
+             <img src={userProfile.photoURL} alt="User" onError={() => setImgError(true)} className="h-8 w-8 rounded-full object-cover border border-slate-700" />
+           ) : (
+             <div className="h-8 w-8 bg-slate-800 rounded-full flex items-center justify-center text-indigo-400 border border-slate-700 shadow-sm"><i className="bi bi-person-fill text-lg mt-1"></i></div>
+           )}
+        </button>
         
         <button onClick={handleLogout} className="px-3 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 hover:bg-red-500/10 hover:border-red-500/50 hover:text-red-400 text-xs font-bold rounded-lg transition-colors cursor-pointer">
           Logout

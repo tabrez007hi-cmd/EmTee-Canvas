@@ -9,6 +9,7 @@ import SettingsModal from '../components/SettingsModel';
 import WorkspacesModal from '../components/WorkspacesModal'; 
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal'; 
 import ExportModal from '../components/ExportModal';
+import RoleBadge from '../components/RoleBadge';
 import { useUI } from '../contexts/UIContext';
 import { generateCanvasHtml } from '../utils/templates';
 import { auth, db } from '../firebase';
@@ -452,15 +453,16 @@ export default function Builder() {
 
   const handleAddItem = (type) => {
     const newItems = [];
-    
-    // ✨ FIX: Generates an ultra-short, completely valid HTML ID (e.g. e1a2b3)
     const parentId = `e${Math.random().toString(36).substr(2, 6)}`;
 
+    // ✨ FIX: Separated Lists from Tables to prevent Flexbox breaking Table structure!
     const isContainer = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup'].includes(type);
     const isInput = ['input', 'textarea', 'select', 'datalist', 'output', 'meter', 'progress'].includes(type);
     const isMedia = ['img', 'video', 'audio', 'iframe', 'canvas', 'svg', 'object', 'embed'].includes(type);
-    const isList = ['ul', 'ol', 'dl', 'table', 'thead', 'tbody', 'tfoot', 'tr'].includes(type);
-    const isListItem = ['li', 'dt', 'dd', 'td', 'th'].includes(type);
+    const isList = ['ul', 'ol', 'dl'].includes(type); // Pure lists
+    const isTable = ['table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup'].includes(type); // Table structure
+    const isTableCell = ['td', 'th'].includes(type); // Table cells
+    const isListItem = ['li', 'dt', 'dd'].includes(type);
     const isLink = type === 'a';
     const isBtn = type === 'button';
     const hasSrc = ['img', 'video', 'audio', 'iframe', 'embed', 'source', 'track'].includes(type);
@@ -468,7 +470,7 @@ export default function Builder() {
 
     let defaultText = '';
     const emptyElements = ['br', 'wbr', 'hr', 'area', 'col', 'source', 'track', 'img', 'input', 'embed', 'keygen', 'spacer'];
-    if (!isMedia && !isInput && !isContainer && !isList && !isListItem && !emptyElements.includes(type)) {
+    if (!isMedia && !isInput && !isContainer && !isList && !isTable && !isTableCell && !isListItem && !emptyElements.includes(type)) {
        defaultText = isLink ? 'Link Text' : isBtn ? 'Button' : `${type.toUpperCase()} Element`;
     }
 
@@ -476,6 +478,15 @@ export default function Builder() {
 
     if (isContainer) defaultStyles = { minHeight: '50px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' };
     
+    // ✨ FIX: Distinct styling allowing tables to exist naturally without Flex overrides
+    if (isTable) {
+        defaultStyles = { width: '100%', borderCollapse: 'collapse', marginBottom: '1rem' };
+        if (type === 'table') defaultStyles.backgroundColor = '#ffffff';
+    }
+    if (isTableCell) {
+        defaultStyles = { padding: '12px', border: '1px solid #cbd5e1', textAlign: 'left' };
+    }
+
     if (type === 'h1') defaultStyles = { ...defaultStyles, fontSize: '2.5rem', fontWeight: '800', lineHeight: '1.2' };
     if (type === 'h2') defaultStyles = { ...defaultStyles, fontSize: '2rem', fontWeight: '700', lineHeight: '1.3' };
     if (type === 'h3') defaultStyles = { ...defaultStyles, fontSize: '1.75rem', fontWeight: '700', lineHeight: '1.4' };
@@ -503,7 +514,6 @@ export default function Builder() {
     if (type === 'svg') defaultStyles = { minHeight: '100px', width: '100px', backgroundColor: '#f1f5f9' };
     
     if (isList) defaultStyles = { paddingLeft: '20px', marginBottom: '1rem', width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' };
-    if (type === 'table') defaultStyles = { width: '100%', borderCollapse: 'collapse', backgroundColor: '#ffffff', border: '1px solid #e2e8f0' };
 
     newItems.push({
       id: parentId, type: type, customId: '', parentId: null,  
@@ -514,7 +524,7 @@ export default function Builder() {
       inputType: type === 'input' ? 'text' : null,
       styles: defaultStyles,
       tabletStyles: {}, mobileStyles: {}, 
-      hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {}, // ✨ NEW: Initialize Hover states!
+      hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {},
       rawHtml: '', attributes: {}
     });
 

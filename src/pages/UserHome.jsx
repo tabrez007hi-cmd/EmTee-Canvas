@@ -10,8 +10,10 @@ import DashboardWorkspaces from '../components/DashboardWorkspaces';
 import DashboardTemplates from '../components/DashboardTemplates';
 import DashboardExplore from '../components/DashboardExplore';
 import NotificationBell from '../components/NotificationBell';
+import RoleBadge from '../components/RoleBadge';
 
-import { useUI } from '../contexts/UIContext'; // ✨ NEW: Imported UI Context
+
+import { useUI } from '../contexts/UIContext'; 
 import { generateCanvasHtml } from '../utils/templates'; 
 import { systemTemplates } from '../utils/systemTemplates'; 
 

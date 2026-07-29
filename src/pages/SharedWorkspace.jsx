@@ -4,6 +4,8 @@ import { auth, db } from '../firebase';
 import { ref, get, update, onValue } from 'firebase/database';
 import { onAuthStateChanged } from 'firebase/auth';
 import { generateCanvasHtml } from '../utils/templates';
+import RoleBadge from '../components/RoleBadge';
+
 
 const generateProjectSlug = (name) => {
   const cleanName = name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');

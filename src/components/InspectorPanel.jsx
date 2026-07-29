@@ -336,7 +336,7 @@ export default function InspectorPanel({
       {/* 🚀 HEADER */}
       <div className="h-12 px-4 border-b border-white/10 flex items-center justify-between shrink-0 bg-white/[0.02]">
         <div className="flex items-center gap-3">
-          <button onClick={() => setIsInspectMode(!isInspectMode)} className={`w-6 h-6 shrink-0 rounded flex items-center justify-center transition-all cursor-pointer ${isInspectMode ? 'bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.6)] animate-pulse' : 'text-slate-400 hover:text-white hover:bg-white/10'}`} title="Select Element in Canvas">
+          <button onClick={() => setIsInspectMode(!isInspectMode)} className={`bg-[#12141c] w-6 h-6 shrink-0 rounded flex items-center justify-center transition-all cursor-pointer ${isInspectMode ? 'bg-indigo-500 text-white shadow-[0_0_10px_rgba(99,102,241,0.6)] animate-pulse' : 'text-slate-400 hover:text-white hover:bg-white/10'}`} title="Select Element in Canvas">
             <i className="bi bi-cursor-fill text-[11px]"></i>
           </button>
           <div className="flex items-center gap-1.5">
@@ -470,7 +470,7 @@ export default function InspectorPanel({
                 <div className="flex flex-col h-full animate-fade-in relative -mt-2">
                   
                   {/* ✨ CSS CONTROL HEADER */}
-                  <div className="sticky top-0 z-30 bg-[#12141c] pt-2 pb-3 px-1 border-b border-white/10 shadow-md">
+                  <div className="sticky top-0 z-30 bg-[#1b1d25] pt-2 pb-3 px-1 border-b border-white/10 shadow-md">
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <div className="flex flex-1 bg-black/50 p-1 rounded-lg border border-white/5 shadow-inner">
                         <button onClick={() => setBreakpoint('desktop')} className={`flex-1 py-1 text-[10px] font-bold rounded transition-all cursor-pointer capitalize ${breakpoint === 'desktop' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:text-slate-300'}`}><i className="bi bi-pc-display"></i> Desk</button>
@@ -491,7 +491,7 @@ export default function InspectorPanel({
                       <i className="bi bi-search absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-[10px]"></i>
                       <input 
                         type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} 
-                        placeholder="Search 130+ properties..." 
+                        placeholder="Search css properties..." 
                         className="w-full bg-[#0a0a0a]/80 border border-white/10 text-slate-200 rounded-lg pl-8 pr-8 py-1.5 text-[11px] focus:outline-none focus:border-indigo-500 transition-colors shadow-inner"
                       />
                       {searchTerm && (<button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white cursor-pointer"><i className="bi bi-x-circle-fill text-[10px]"></i></button>)}
@@ -738,7 +738,7 @@ export default function InspectorPanel({
                       <div className="flex items-center gap-2 mb-2 bg-black/20 border border-white/5 p-1 rounded-lg shrink-0">
                         <div className="flex-1 flex gap-1">
                           {['desktop', 'tablet', 'mobile'].map(bp => (
-                            <button key={bp} onClick={() => setBreakpoint(bp)} className={`flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer ${breakpoint === bp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{bp.charAt(0)}</button>
+                            <button key={bp} onClick={() => setBreakpoint(bp)} className={`flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer ${breakpoint === bp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{bp.charAt(0)}{bp.charAt(1)}{bp.charAt(2)}</button>
                           ))}
                         </div>
                         <button onClick={() => setPseudoState(p => p === 'normal' ? 'hover' : 'normal')} className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${pseudoState === 'hover' ? 'bg-pink-500 text-white' : 'bg-transparent text-slate-500 hover:text-white'}`}>

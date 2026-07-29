@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { ref, set, get, update, onValue } from 'firebase/database'; 
-import { useUI } from '../contexts/UIContext'; // ✨ NEW: Imported UI Context
+import { useUI } from '../contexts/UIContext';
+import RoleBadge from '../components/RoleBadge';
+
 
 const wrapHtmlToLayout = (htmlString) => {
   return JSON.stringify([{

@@ -16,7 +16,6 @@ const generateDynamicCSS = (layoutItems) => {
   layoutItems.forEach(item => {
     const selector = `#${item.customId || item.id}`;
 
-    // Standard Styles
     if (item.styles && Object.keys(item.styles).length > 0) {
       baseCSS += `${selector} { ${serializeStyles(item.styles)} }\n`;
     }
@@ -24,7 +23,6 @@ const generateDynamicCSS = (layoutItems) => {
       baseCSS += `${selector}:hover { ${serializeStyles(item.hoverStyles)} }\n`;
     }
 
-    // Tablet Styles
     if ((item.tabletStyles && Object.keys(item.tabletStyles).length > 0) || (item.tabletHoverStyles && Object.keys(item.tabletHoverStyles).length > 0)) {
       tabletCSS += `@media (max-width: 1024px) {\n`;
       if (item.tabletStyles && Object.keys(item.tabletStyles).length > 0) tabletCSS += `  ${selector} { ${serializeStyles(item.tabletStyles)} }\n`;
@@ -32,7 +30,6 @@ const generateDynamicCSS = (layoutItems) => {
       tabletCSS += `}\n`;
     }
 
-    // Mobile Styles
     if ((item.mobileStyles && Object.keys(item.mobileStyles).length > 0) || (item.mobileHoverStyles && Object.keys(item.mobileHoverStyles).length > 0)) {
       mobileCSS += `@media (max-width: 640px) {\n`;
       if (item.mobileStyles && Object.keys(item.mobileStyles).length > 0) mobileCSS += `  ${selector} { ${serializeStyles(item.mobileStyles)} }\n`;
@@ -85,7 +82,12 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
     }
 
     const tag = item.type;
-    const attrs = `${idAttr} ${dynamicAttributesStr} class="transition-all relative"`.trim();
+    
+    // ✨ FIX: Apply soft empty placeholders to Tables and Cells too!
+    const isContainerBlock = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup', 'ul', 'ol', 'form', 'table', 'td', 'th', 'tr', 'tbody'].includes(tag);
+    const builderHelperAttr = (!isExport && isContainerBlock) ? ` data-empty-container="${tag}"` : '';
+
+    const attrs = `${idAttr} ${dynamicAttributesStr} class="transition-all relative"${builderHelperAttr}`.trim();
     
     if (tag === 'img') return `${indent}<img ${attrs} src="${item.src || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=500&q=80'}" alt="Image"/>`;
     if (['input', 'br', 'hr', 'source', 'track', 'wbr', 'area', 'embed', 'col'].includes(tag)) {
@@ -114,6 +116,7 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         <p style="font-size: 14px; line-height: 1.6;">Your workspace is a completely blank HTML document. Drag an element from the sidebar to begin structuring your DOM Tree from scratch.</p>
     </div>`;
 
+  // ✨ FIX: Stripped borders & backgrounds. Just pure text injection.
   const builderCss = isExport ? '' : `
         * { transition: outline 0.1s ease-in-out; }
         .selected-element { outline: 2px solid #6366f1 !important; outline-offset: -2px; }
@@ -121,6 +124,24 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
+        
+        [data-empty-container]:empty {
+            min-height: 24px !important;
+            min-width: 24px !important;
+        }
+        
+        [data-empty-container]:empty::after {
+            content: '<' attr(data-empty-container) '>';
+            color: #94a3b8;
+            font-family: monospace;
+            font-size: 11px;
+            font-weight: bold;
+            pointer-events: none;
+            display: block;
+            text-align: center;
+            opacity: 0.6;
+            padding: 8px;
+        }
   `;
 
   return `<!DOCTYPE html>

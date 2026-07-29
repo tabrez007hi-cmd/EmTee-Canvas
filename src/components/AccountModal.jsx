@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { auth, db } from '../firebase';
 import { updateProfile } from 'firebase/auth';
 import { ref, update } from 'firebase/database';
+import RoleBadge from './RoleBadge'; // ✨ FIX 3: Implemented RoleBadge everywhere!
 
 export default function AccountModal({ isOpen, onClose, userProfile }) {
   const [imgError, setImgError] = useState(false); 
@@ -65,7 +66,6 @@ export default function AccountModal({ isOpen, onClose, userProfile }) {
             </div>
           </div>
           
-          {/* ✨ Editable Username Field */}
           <div>
             <label className="text-[10px] uppercase tracking-widest font-bold text-slate-500 block mb-1">Developer Username</label>
             {isEditing ? (
@@ -82,7 +82,8 @@ export default function AccountModal({ isOpen, onClose, userProfile }) {
               </div>
             ) : (
               <div className="flex items-center justify-between px-1">
-                <span className="text-sm font-medium text-slate-200">{displayUsername}</span>
+                {/* ✨ FIX 3: Replaced standard text with RoleBadge for consistent Admin styling */}
+                <RoleBadge role={userProfile.role} username={userProfile.username} />
                 <button onClick={() => setIsEditing(true)} className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer" title="Edit Username">
                   <i className="bi bi-pencil-square"></i>
                 </button>

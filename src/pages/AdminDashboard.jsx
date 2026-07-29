@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { ref, onValue, set, update, get } from 'firebase/database';
 import { useUI } from '../contexts/UIContext';
+import RoleBadge from '../components/RoleBadge';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
