@@ -28,7 +28,7 @@ export default function RoleBadge({ role, username = '', prefix = '' }) {
   const badges = {
     advance: (
       <img 
-        src="" 
+        src="https://www.svgrepo.com/show/368419/thumb-up.svg" 
         alt="Advance User"
         title="Advance User"
         className="w-4 h-4 shrink-0 transition-transform hover:scale-110"
