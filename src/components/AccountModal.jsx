@@ -82,7 +82,6 @@ export default function AccountModal({ isOpen, onClose, userProfile }) {
               </div>
             ) : (
               <div className="flex items-center justify-between px-1">
-                {/* ✨ FIX 3: Replaced standard text with RoleBadge for consistent Admin styling */}
                 <RoleBadge role={userProfile.role} username={userProfile.username} />
                 <button onClick={() => setIsEditing(true)} className="text-indigo-400 hover:text-indigo-300 transition-colors cursor-pointer" title="Edit Username">
                   <i className="bi bi-pencil-square"></i>
