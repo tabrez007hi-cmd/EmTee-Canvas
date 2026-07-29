@@ -15,7 +15,7 @@ export default function RoleBadge({ role, username = '', prefix = '' }) {
           {displayName}
         </span>
         <img 
-          src="https://emteecanvas.vercel.app/crown.svg" 
+          src="https://www.svgrepo.com/show/401369/crown.svg" 
           alt="Admin Crown"
           className="w-4 h-4 shrink-0 animate-pulse" 
           style={{ filter: 'drop-shadow(0px 0px 4px rgba(250,204,21,0.8))' }} 
@@ -28,7 +28,7 @@ export default function RoleBadge({ role, username = '', prefix = '' }) {
   const badges = {
     advance: (
       <img 
-        src="https://emteecanvas.vercel.app/thumb.svg" 
+        src="" 
         alt="Advance User"
         title="Advance User"
         className="w-4 h-4 shrink-0 transition-transform hover:scale-110"
@@ -37,7 +37,7 @@ export default function RoleBadge({ role, username = '', prefix = '' }) {
     ),
     pro: (
       <img 
-        src="https://emteecanvas.vercel.app/tick.svg" 
+        src="https://www.svgrepo.com/show/488418/tick-circle.svg" 
         alt="Pro Member"
         title="Pro Member"
         className="w-4 h-4 shrink-0 transition-transform hover:scale-110"
