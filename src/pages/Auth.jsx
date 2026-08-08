@@ -9,7 +9,7 @@ export default function Auth() {
   const [formData, setFormData] = useState({ username: '', email: '', password: '', confirmPassword: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const [isInitializing, setIsInitializing] = useState(!!localStorage.getItem('awaitingGoogleRedirect'));
   const navigate = useNavigate();
 
@@ -18,17 +18,17 @@ export default function Auth() {
 
   useEffect(() => {
     let isMounted = true;
-    let unsubscribe; 
+    let unsubscribe;
 
     const processAuth = async () => {
       try {
         if (localStorage.getItem('awaitingGoogleRedirect')) {
           const result = await getRedirectResult(auth);
-          
+
           if (result && result.user) {
             const userRef = ref(db, `users/${result.user.uid}/profile`);
             const snapshot = await get(userRef);
-            
+
             if (!snapshot.exists()) {
               await set(userRef, {
                 username: result.user.displayName || 'Google User',
@@ -56,9 +56,9 @@ export default function Auth() {
     };
 
     processAuth();
-    
-    return () => { 
-      isMounted = false; 
+
+    return () => {
+      isMounted = false;
       if (unsubscribe) unsubscribe();
     };
   }, [navigate]);
@@ -72,7 +72,7 @@ export default function Auth() {
         await signInWithEmailAndPassword(auth, formData.email, formData.password);
       } else {
         if (formData.password !== formData.confirmPassword) throw new Error("Passwords do not match");
-        
+
         const userCred = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         await updateProfile(userCred.user, { displayName: formData.username });
 
@@ -146,13 +146,13 @@ export default function Auth() {
           </button>
         </form>
 
-        {/* <button 
-          onClick={handleGoogleSignIn} 
+        <button
+          onClick={handleGoogleSignIn}
           disabled={loading}
           className="w-full mt-6 py-3.5 bg-slate-950 border border-slate-800 text-slate-300 font-bold rounded-xl hover:border-indigo-500 hover:bg-indigo-500/10 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 transition-all"
         >
           <i className="bi bi-google text-red-400"></i> Continue with Google
-        </button> */}
+        </button>
 
         <p className="text-center text-xs text-slate-500 mt-8">
           {isLogin ? "Don't have an account? " : "Already have an account? "}

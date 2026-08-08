@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { auth, db } from '../firebase';
 import { signOut } from 'firebase/auth';
-import { ref, onValue, set, update } from 'firebase/database';
+import { ref, set, update, onValue } from 'firebase/database';
+import { customFetch } from '../utils/api';
 
 import AccountModal from '../components/AccountModal';
 import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal'; 
@@ -57,45 +58,60 @@ export default function UserHome() {
     const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
       ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
       : [];
-
     const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
 
-    const profileRef = ref(db, `users/${user.uid}/profile`);
-    onValue(profileRef, (snapshot) => {
-      if (snapshot.exists()) {
-         const data = snapshot.val();
-         setUserProfile(data);
-         setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+    // ✨ NEW: Fetching everything from the Custom Backend instead of Firebase DB!
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+
+        // 1. Fetch Profile
+        const profileData = await customFetch('/api/user/profile');
+        setUserProfile(profileData);
+        setUserRole(isAdmin ? 'admin' : (profileData.role || 'normal'));
+
+        // 2. Fetch Workspaces
+        const workspacesData = await customFetch('/api/workspaces');
+        setWorkspaces(workspacesData);
+
+        // 3. Fetch Explore Feed
+        const exploreData = await customFetch('/api/explore');
+        setExploreWorkspaces(exploreData);
+
+      } catch (error) {
+        console.error("Error fetching data from backend:", error);
+      } finally {
+        setLoading(false);
       }
-    });
+    };
 
-    onValue(ref(db, `users/${user.uid}/workspaces`), (snapshot) => {
-      if (snapshot.exists()) {
-        setWorkspaces(Object.values(snapshot.val()).sort((a, b) => b.updatedAt - a.updatedAt));
-      } else { setWorkspaces([]); }
-      setLoading(false);
-    });
-
-    onValue(ref(db, 'templates'), (snapshot) => {
-      if (snapshot.exists()) setGlobalTemplates(Object.values(snapshot.val()).sort((a, b) => b.createdAt - a.createdAt));
-      else setGlobalTemplates([]);
-    });
-
-    onValue(ref(db, 'publicWorkspaces'), (snapshot) => {
-      if (snapshot.exists()) {
-        const publicItems = Object.values(snapshot.val());
-        const formattedItems = publicItems.map(ws => ({
-          ...ws,
-          likeCount: ws.likes ? Object.keys(ws.likes).length : 0,
-          isLikedByMe: ws.likes ? !!ws.likes[user.uid] : false
-        }));
-        formattedItems.sort((a, b) => b.updatedAt - a.updatedAt);
-        setExploreWorkspaces(formattedItems);
-      } else {
-        setExploreWorkspaces([]);
-      }
-    });
+    fetchDashboardData();
   }, [navigate]);
+
+  // ✨ NEW: Refactored Toggle Like function to hit the backend
+  const handleToggleLike = async (e, workspaceId, authorId, isLikedByMe) => {
+    e.stopPropagation();
+    try {
+      await customFetch(`/api/workspaces/${workspaceId}/like`, {
+        method: 'POST',
+        body: JSON.stringify({ authorId, isLikedByMe })
+      });
+      
+      // Manually update the state locally so the UI feels instant
+      setExploreWorkspaces(prev => prev.map(ws => {
+        if (ws.id === workspaceId) {
+          return {
+            ...ws,
+            isLikedByMe: !isLikedByMe,
+            likeCount: isLikedByMe ? ws.likeCount - 1 : ws.likeCount + 1
+          };
+        }
+        return ws;
+      }));
+    } catch (error) {
+      console.error("Error toggling like:", error);
+    }
+  };
 
   const atWorkspaceLimit = (userRole === 'normal' && workspaces.length >= 3) || (userRole === 'pro' && workspaces.length >= 10);
 
@@ -148,21 +164,21 @@ export default function UserHome() {
     });
   };
 
-  const handleToggleLike = async (e, workspaceId, authorId, isLikedByMe) => {
-    e.stopPropagation();
-    const user = auth.currentUser;
-    if (!user) return;
+  // const handleToggleLike = async (e, workspaceId, authorId, isLikedByMe) => {
+  //   e.stopPropagation();
+  //   const user = auth.currentUser;
+  //   if (!user) return;
     
-    const updates = {};
-    if (isLikedByMe) {
-      updates[`users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`] = null;
-      updates[`publicWorkspaces/${workspaceId}/likes/${user.uid}`] = null;
-    } else {
-      updates[`users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`] = true;
-      updates[`publicWorkspaces/${workspaceId}/likes/${user.uid}`] = true;
-    }
-    await update(ref(db), updates);
-  };
+  //   const updates = {};
+  //   if (isLikedByMe) {
+  //     updates[`users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`] = null;
+  //     updates[`publicWorkspaces/${workspaceId}/likes/${user.uid}`] = null;
+  //   } else {
+  //     updates[`users/${authorId}/workspaces/${workspaceId}/likes/${user.uid}`] = true;
+  //     updates[`publicWorkspaces/${workspaceId}/likes/${user.uid}`] = true;
+  //   }
+  //   await update(ref(db), updates);
+  // };
 
   // ✨ UX FIX: Replaced native confirm with showConfirm
   const handleDeleteTemplate = async (templateId) => {

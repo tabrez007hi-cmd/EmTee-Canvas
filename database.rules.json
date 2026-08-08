@@ -1,0 +1,77 @@
+// {
+//   "rules": {
+//     ".read": true,
+//     ".write": true
+//   }
+// }
+
+{
+  "rules": {
+    "users": {
+      ".read": "auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com')",
+      
+      "$uid": {
+        ".read": "$uid === auth.uid",
+        ".write": "$uid === auth.uid || (auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com'))",
+        
+        "profile": {
+          // ✨ FIX 1: Allow public read access to profiles so the Share Page can fetch the Author's Name without crashing!
+          ".read": true,
+          "role": {
+            ".validate": "newData.val() === data.val() || (auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com'))"
+          }
+        },
+        
+        "workspaces": {
+           "$wsId": {
+             // ✨ FIX 2: Removed isShareable. Now it strictly relies on the master isPublic toggle.
+             ".read": "data.child('isPublic').val() === true",
+             
+             "likes": {
+                "$likerId": {
+                   ".write": "auth != null && $likerId === auth.uid"
+                }
+             }
+           }
+        }
+      }
+    },
+
+    "publicWorkspaces": {
+      // ✨ FIX 3: Changed from 'auth != null' to 'true'. Guests MUST be able to read this node to view share links!
+      ".read": true,
+      "$wsId": {
+         ".write": "auth != null && (!data.exists() || data.child('authorId').val() === auth.uid || newData.child('authorId').val() === auth.uid || auth.token.email === 'tabrez007hi@gmail.com')",
+         
+         "likes": {
+            "$likerId": {
+               ".write": "auth != null && $likerId === auth.uid"
+            }
+         }
+      }
+    },
+
+    "templates": {
+      ".read": true,
+      ".write": "auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com' || root.child('developerWhitelists').child(auth.token.email.replace('.', '_')).exists())"
+    },
+
+    "membershipRequests": {
+       ".read": "auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com')",
+       "$uid": {
+          ".read": "$uid === auth.uid",
+          ".write": "$uid === auth.uid || (auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com'))"
+       }
+    },
+    
+    "roleAssignments": {
+       ".read": "auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com')",
+       ".write": "auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com')"
+    },
+    
+    "developerWhitelists": {
+       ".read": "auth != null", 
+       ".write": "auth != null && (auth.token.email === 'tabrez007hi@gmail.com' || auth.token.email === 'admin@gmail.com')"
+    }
+  }
+}
