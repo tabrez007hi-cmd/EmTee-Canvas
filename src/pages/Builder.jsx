@@ -4,10 +4,10 @@ import Navbar from '../components/Navbar';
 import Sidebar from '../components/Sidebar';
 import CanvasContainer from '../components/CanvasContainer';
 import InspectorPanel from '../components/InspectorPanel';
-import AccountModal from '../components/AccountModal'; 
+import AccountModal from '../components/AccountModal';
 import SettingsModal from '../components/SettingsModel';
-import WorkspacesModal from '../components/WorkspacesModal'; 
-import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal'; 
+import WorkspacesModal from '../components/WorkspacesModal';
+import WorkspaceSettingsModal from '../components/WorkspaceSettingsModal';
 import ExportModal from '../components/ExportModal';
 import RoleBadge from '../components/RoleBadge';
 import { useUI } from '../contexts/UIContext';
@@ -29,23 +29,23 @@ export default function Builder() {
 
   const [isInspectMode, setIsInspectMode] = useState(false);
   const [selectedElementId, setSelectedElementId] = useState(null);
-  const [selectionNonce, setSelectionNonce] = useState(0); 
+  const [selectionNonce, setSelectionNonce] = useState(0);
   const [isInspectorMinimized, setIsInspectorMinimized] = useState(true);
 
   const [layoutItems, setLayoutItems] = useState([]);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
-  
+
   const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isWorkspacesModalOpen, setIsWorkspacesModalOpen] = useState(false); 
+  const [isWorkspacesModalOpen, setIsWorkspacesModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [workspaceSettingsTarget, setWorkspaceSettingsTarget] = useState(null); 
+  const [workspaceSettingsTarget, setWorkspaceSettingsTarget] = useState(null);
 
   const [workspaces, setWorkspaces] = useState([]);
   const [activeWorkspaceId, setActiveWorkspaceId] = useState(null);
   const [loadedWorkspaceId, setLoadedWorkspaceId] = useState(null);
-  
+
   const [sharedViewData, setSharedViewData] = useState(null);
   const [userRole, setUserRole] = useState('normal');
 
@@ -68,7 +68,7 @@ export default function Builder() {
     doc.querySelectorAll('style').forEach(styleTag => {
       extractedStyles += styleTag.innerHTML + '\n';
     });
-    
+
     const cleanedStyles = extractedStyles
       .replace(/\.selected-element\s*\{[^}]+\}/g, '')
       .replace(/::-webkit-scrollbar[^{]*\{[^}]+\}/g, '')
@@ -77,7 +77,7 @@ export default function Builder() {
       .trim();
 
     setLayoutItems(prev => {
-      let nextItems = JSON.parse(JSON.stringify(prev)); 
+      let nextItems = JSON.parse(JSON.stringify(prev));
 
       let globalCssItem = nextItems.find(i => i.id === 'global_custom_css');
       if (cleanedStyles) {
@@ -99,7 +99,7 @@ export default function Builder() {
 
         if (item.isRawChild) {
           const el = doc.getElementById(item.customId || item.id);
-          if (el) item.rawHtml = el.outerHTML.replace(/\s*data-id="[^"]*"/g, ''); // ✨ Clean export HTML
+          if (el) item.rawHtml = el.outerHTML.replace(/\s*data-id="[^"]*"/g, '');
         } else {
           const el = doc.getElementById(item.customId || item.id);
           if (el) {
@@ -141,23 +141,23 @@ export default function Builder() {
       get(sharedRef).then(snap => {
         if (snap.exists()) {
           setSharedViewData({ owner: urlOwner, ...snap.val() });
-          setIsDataLoaded(true); 
+          setIsDataLoaded(true);
         } else {
           const privateRef = ref(db, `users/${urlOwner}/workspaces/${urlParamId}`);
           get(privateRef).then(privSnap => {
-             if (privSnap.exists()) {
-                const sharedWs = privSnap.val();
-                if (!sharedWs.isPublic) {
-                  showToast('Access Denied 🔒\nThis workspace is private.', 'error');
-                  navigate(user ? '/user/home' : '/authentication', { replace: true });
-                } else {
-                  setSharedViewData({ owner: urlOwner, ...sharedWs });
-                  setIsDataLoaded(true); 
-                }
-             } else {
-                showToast('Error ❌\nShared workspace not found.', 'error');
+            if (privSnap.exists()) {
+              const sharedWs = privSnap.val();
+              if (!sharedWs.isPublic) {
+                showToast('Access Denied 🔒\nThis workspace is private.', 'error');
                 navigate(user ? '/user/home' : '/authentication', { replace: true });
-             }
+              } else {
+                setSharedViewData({ owner: urlOwner, ...sharedWs });
+                setIsDataLoaded(true);
+              }
+            } else {
+              showToast('Error ❌\nShared workspace not found.', 'error');
+              navigate(user ? '/user/home' : '/authentication', { replace: true });
+            }
           });
         }
       });
@@ -166,25 +166,32 @@ export default function Builder() {
 
   useEffect(() => {
     const user = auth.currentUser;
-    if (!user) return; 
-    
-    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS 
-  ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim()) 
-  : [];
+    if (!user) return;
 
-    const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase().trim());
+    // ✨ BULLETPROOF FIX: 8-second safety timer to prevent infinite loading screens
+    const safetyTimer = setTimeout(() => {
+      setIsDataLoaded(true);
+    }, 8000);
+
+    const ADMIN_EMAILS = import.meta.env.VITE_ADMIN_EMAILS
+      ? import.meta.env.VITE_ADMIN_EMAILS.split(',').map(e => e.toLowerCase().trim())
+      : [];
+
+    // ✨ FIX: Safe optional chaining to prevent silent crashes if user.email is null
+    const isAdmin = user.email && ADMIN_EMAILS.includes(user.email?.toLowerCase().trim());
 
     const profileRef = ref(db, `users/${user.uid}/profile`);
     onValue(profileRef, (snapshot) => {
       if (snapshot.exists()) {
-         const data = snapshot.val();
-         setUserProfile(data);
-         setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
+        const data = snapshot.val();
+        setUserProfile(data);
+        setUserRole(isAdmin ? 'admin' : (data.role || 'normal'));
       }
-    });
+    }, (error) => console.error("Profile DB Error:", error));
 
     const workspacesRef = ref(db, `users/${user.uid}/workspaces`);
     onValue(workspacesRef, (snapshot) => {
+      clearTimeout(safetyTimer); // Clear timer when DB responds!
       if (snapshot.exists()) {
         const data = snapshot.val();
         const list = Object.values(data);
@@ -201,14 +208,20 @@ export default function Builder() {
       } else {
         navigate('/user/home', { replace: true });
       }
+    }, (error) => {
+      clearTimeout(safetyTimer);
+      setIsDataLoaded(true);
+      showToast("Error connecting to database.", "error");
     });
+
+    return () => clearTimeout(safetyTimer);
   }, [navigate]);
 
   useEffect(() => {
     if (!activeWorkspaceId || !userProfile || sharedViewData) return;
     const currentParams = new URLSearchParams(location.search);
     const targetUser = userProfile.username || 'user';
-    
+
     if (currentParams.get('ws') !== activeWorkspaceId || currentParams.get('u') !== targetUser) {
       navigate(`${location.pathname}?u=${targetUser}&ws=${activeWorkspaceId}`, { replace: true });
     }
@@ -217,7 +230,7 @@ export default function Builder() {
   useEffect(() => {
     if (!activeWorkspaceId || workspaces.length === 0 || sharedViewData) return;
     const currentWorkspace = workspaces.find(w => w.id === activeWorkspaceId);
-    
+
     if (currentWorkspace) {
       try {
         const remoteString = typeof currentWorkspace.layouts === 'string' ? currentWorkspace.layouts : JSON.stringify(currentWorkspace.layouts || []);
@@ -230,7 +243,7 @@ export default function Builder() {
           }
           return prevItems;
         });
-        
+
         setLoadedWorkspaceId(activeWorkspaceId);
       } catch (e) {
         console.error("Failed to parse layout JSON", e);
@@ -244,12 +257,12 @@ export default function Builder() {
       if (!currentWorkspace) return;
 
       const currentLocalString = JSON.stringify(layoutItems);
-      
+
       let canonicalRemote = '[]';
       try {
         const remoteStr = typeof currentWorkspace.layouts === 'string' ? currentWorkspace.layouts : JSON.stringify(currentWorkspace.layouts || []);
         canonicalRemote = JSON.stringify(JSON.parse(remoteStr));
-      } catch (e) {}
+      } catch (e) { }
 
       if (canonicalRemote === currentLocalString) return;
 
@@ -258,17 +271,17 @@ export default function Builder() {
         layouts: currentLocalString,
         updatedAt: Date.now()
       };
-      
+
       const dbUpdates = {};
       dbUpdates[`users/${auth.currentUser.uid}/workspaces/${activeWorkspaceId}`] = updatedProject;
-      
+
       if (updatedProject.isPublic) {
-         dbUpdates[`publicWorkspaces/${activeWorkspaceId}`] = { 
-            ...updatedProject, authorId: auth.currentUser.uid, authorName: userProfile?.username || 'Unknown', 
-            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-         };
+        dbUpdates[`publicWorkspaces/${activeWorkspaceId}`] = {
+          ...updatedProject, authorId: auth.currentUser.uid, authorName: userProfile?.username || 'Unknown',
+          authorPhoto: userProfile?.photoURL || null, authorRole: userRole
+        };
       }
-      
+
       update(ref(db), dbUpdates);
     }
   }, [layoutItems, isDataLoaded, activeWorkspaceId, autoSave, workspaces, loadedWorkspaceId, sharedViewData]);
@@ -288,12 +301,12 @@ export default function Builder() {
 
     const dbUpdates = {};
     dbUpdates[`users/${user.uid}/workspaces/${activeWorkspaceId}`] = updatedProject;
-    
+
     if (updatedProject.isPublic) {
-       dbUpdates[`publicWorkspaces/${activeWorkspaceId}`] = { 
-          ...updatedProject, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
-          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-       };
+      dbUpdates[`publicWorkspaces/${activeWorkspaceId}`] = {
+        ...updatedProject, authorId: user.uid, authorName: userProfile?.username || 'Unknown',
+        authorPhoto: userProfile?.photoURL || null, authorRole: userRole
+      };
     }
 
     update(ref(db), dbUpdates).then(() => {
@@ -325,15 +338,15 @@ export default function Builder() {
         const user = auth.currentUser;
         const newId = generateProjectSlug(name);
         const newWS = { id: newId, name: name.trim(), layouts: '[]', isPublic: forcePublic, allowCodeView: false, allowDomView: false, createdAt: Date.now(), updatedAt: Date.now() };
-        
+
         const dbUpdates = {};
         dbUpdates[`users/${user.uid}/workspaces/${newId}`] = newWS;
-        
+
         if (forcePublic) {
-           dbUpdates[`publicWorkspaces/${newId}`] = { 
-              ...newWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
-              authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-           };
+          dbUpdates[`publicWorkspaces/${newId}`] = {
+            ...newWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown',
+            authorPhoto: userProfile?.photoURL || null, authorRole: userRole
+          };
         }
 
         update(ref(db), dbUpdates).then(() => {
@@ -367,31 +380,31 @@ export default function Builder() {
     const match = workspaces.find(w => w.id === id);
     if (match) {
       const newId = updates.name !== match.name ? generateProjectSlug(updates.name) : id;
-      const updatedWS = { 
-        ...match, 
-        id: newId, 
-        name: updates.name, 
-        isPublic: updates.isPublic, 
+      const updatedWS = {
+        ...match,
+        id: newId,
+        name: updates.name,
+        isPublic: updates.isPublic,
         allowCodeView: updates.allowCodeView,
         allowDomView: updates.allowDomView,
-        updatedAt: Date.now() 
+        updatedAt: Date.now()
       };
-      
+
       const dbUpdates = {};
       dbUpdates[`users/${user.uid}/workspaces/${newId}`] = updatedWS;
-      
+
       if (id !== newId) {
         dbUpdates[`users/${user.uid}/workspaces/${id}`] = null;
         dbUpdates[`publicWorkspaces/${id}`] = null;
       }
-      
+
       if (updatedWS.isPublic) {
-         dbUpdates[`publicWorkspaces/${newId}`] = { 
-            ...updatedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
-            authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-         };
+        dbUpdates[`publicWorkspaces/${newId}`] = {
+          ...updatedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown',
+          authorPhoto: userProfile?.photoURL || null, authorRole: userRole
+        };
       } else {
-         dbUpdates[`publicWorkspaces/${newId}`] = null; 
+        dbUpdates[`publicWorkspaces/${newId}`] = null;
       }
 
       update(ref(db), dbUpdates).then(() => {
@@ -427,15 +440,15 @@ export default function Builder() {
       isPublic: forcePublic, allowCodeView: false, allowDomView: false,
       createdAt: Date.now(), updatedAt: Date.now()
     };
-    
+
     const dbUpdates = {};
     dbUpdates[`users/${user.uid}/workspaces/${copyId}`] = clonedWS;
-    
+
     if (forcePublic) {
-       dbUpdates[`publicWorkspaces/${copyId}`] = { 
-          ...clonedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown', 
-          authorPhoto: userProfile?.photoURL || null, authorRole: userRole 
-       };
+      dbUpdates[`publicWorkspaces/${copyId}`] = {
+        ...clonedWS, authorId: user.uid, authorName: userProfile?.username || 'Unknown',
+        authorPhoto: userProfile?.photoURL || null, authorRole: userRole
+      };
     }
 
     update(ref(db), dbUpdates);
@@ -446,8 +459,8 @@ export default function Builder() {
 
   const handleSelectElement = (id) => {
     setSelectedElementId(id);
-    setSelectionNonce(prev => prev + 1); 
-    setIsInspectorMinimized(false); 
+    setSelectionNonce(prev => prev + 1);
+    setIsInspectorMinimized(false);
   };
 
   const handleAddItem = (type) => {
@@ -457,9 +470,9 @@ export default function Builder() {
     const isContainer = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup'].includes(type);
     const isInput = ['input', 'textarea', 'select', 'datalist', 'output', 'meter', 'progress'].includes(type);
     const isMedia = ['img', 'video', 'audio', 'iframe', 'canvas', 'svg', 'object', 'embed'].includes(type);
-    const isList = ['ul', 'ol', 'dl'].includes(type); 
-    const isTable = ['table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup'].includes(type); 
-    const isTableCell = ['td', 'th'].includes(type); 
+    const isList = ['ul', 'ol', 'dl'].includes(type);
+    const isTable = ['table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup'].includes(type);
+    const isTableCell = ['td', 'th'].includes(type);
     const isListItem = ['li', 'dt', 'dd'].includes(type);
     const isLink = type === 'a';
     const isBtn = type === 'button';
@@ -469,19 +482,19 @@ export default function Builder() {
     let defaultText = '';
     const emptyElements = ['br', 'wbr', 'hr', 'area', 'col', 'source', 'track', 'img', 'input', 'embed', 'keygen', 'spacer'];
     if (!isMedia && !isInput && !isContainer && !isList && !isTable && !isTableCell && !isListItem && !emptyElements.includes(type)) {
-       defaultText = isLink ? 'Link Text' : isBtn ? 'Button' : `${type.toUpperCase()} Element`;
+      defaultText = isLink ? 'Link Text' : isBtn ? 'Button' : `${type.toUpperCase()} Element`;
     }
 
     let defaultStyles = { fontSize: '16px', color: '#1f2937', transition: 'all 0.2s ease', wordWrap: 'break-word' };
 
     if (isContainer) defaultStyles = { minHeight: '50px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' };
-    
+
     if (isTable) {
-        defaultStyles = { width: '100%', borderCollapse: 'collapse', marginBottom: '1rem' };
-        if (type === 'table') defaultStyles.backgroundColor = '#ffffff';
+      defaultStyles = { width: '100%', borderCollapse: 'collapse', marginBottom: '1rem' };
+      if (type === 'table') defaultStyles.backgroundColor = '#ffffff';
     }
     if (isTableCell) {
-        defaultStyles = { padding: '12px', border: '1px solid #cbd5e1', textAlign: 'left' };
+      defaultStyles = { padding: '12px', border: '1px solid #cbd5e1', textAlign: 'left' };
     }
 
     if (type === 'h1') defaultStyles = { ...defaultStyles, fontSize: '2.5rem', fontWeight: '800', lineHeight: '1.2' };
@@ -490,7 +503,7 @@ export default function Builder() {
     if (type === 'h4') defaultStyles = { ...defaultStyles, fontSize: '1.5rem', fontWeight: '600', lineHeight: '1.5' };
     if (type === 'h5') defaultStyles = { ...defaultStyles, fontSize: '1.25rem', fontWeight: '600' };
     if (type === 'h6') defaultStyles = { ...defaultStyles, fontSize: '1rem', fontWeight: '600' };
-    
+
     if (type === 'p') defaultStyles = { ...defaultStyles, fontSize: '1rem', lineHeight: '1.6' };
     if (type === 'strong' || type === 'b') defaultStyles = { ...defaultStyles, fontWeight: 'bold' };
     if (type === 'em' || type === 'i') defaultStyles = { ...defaultStyles, fontStyle: 'italic' };
@@ -501,26 +514,26 @@ export default function Builder() {
     if (type === 'blockquote') defaultStyles = { ...defaultStyles, borderLeft: '4px solid #cbd5e1', paddingLeft: '16px', fontStyle: 'italic', color: '#64748b', margin: '10px 0' };
     if (type === 'a') defaultStyles = { ...defaultStyles, color: '#3b82f6', textDecoration: 'underline', cursor: 'pointer' };
     if (type === 'hr') defaultStyles = { width: '100%', borderTop: '1px solid #cbd5e1', margin: '16px 0' };
-    
+
     if (isBtn) defaultStyles = { padding: '10px 20px', backgroundColor: '#4f46e5', color: '#ffffff', border: 'none', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', display: 'inline-block' };
     if (isInput) defaultStyles = { width: '100%', padding: '10px 14px', border: '1px solid #cbd5e1', borderRadius: '6px', fontSize: '1rem', backgroundColor: '#ffffff' };
-    
+
     if (type === 'img') defaultStyles = { width: '100%', maxWidth: '300px', height: 'auto', borderRadius: '8px', objectFit: 'cover' };
     if (type === 'video' || type === 'iframe' || type === 'canvas' || type === 'object') defaultStyles = { width: '100%', minHeight: '200px', backgroundColor: '#e2e8f0', borderRadius: '8px' };
     if (type === 'audio') defaultStyles = { width: '100%', height: '54px' };
     if (type === 'svg') defaultStyles = { minHeight: '100px', width: '100px', backgroundColor: '#f1f5f9' };
-    
+
     if (isList) defaultStyles = { paddingLeft: '20px', marginBottom: '1rem', width: '100%', display: 'flex', flexDirection: 'column', gap: '8px' };
 
     newItems.push({
-      id: parentId, type: type, customId: '', parentId: null,  
+      id: parentId, type: type, customId: '', parentId: null,
       text: defaultText,
       src: hasSrc ? (type === 'img' ? 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=400&q=80' : type === 'iframe' ? 'https://example.com' : '') : null,
       href: hasHref ? '#' : null,
       placeholder: isInput ? 'Enter data here...' : null,
       inputType: type === 'input' ? 'text' : null,
       styles: defaultStyles,
-      tabletStyles: {}, mobileStyles: {}, 
+      tabletStyles: {}, mobileStyles: {},
       hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {},
       rawHtml: '', attributes: {}
     });
@@ -532,7 +545,7 @@ export default function Builder() {
   const handleRemoveItem = (id) => {
     const idsToRemove = new Set([id]);
     let foundNew = true;
-    while(foundNew) {
+    while (foundNew) {
       foundNew = false;
       layoutItems.forEach(item => {
         if (item.parentId && idsToRemove.has(item.parentId) && !idsToRemove.has(item.id)) {
@@ -544,23 +557,22 @@ export default function Builder() {
 
     setLayoutItems(prev => {
       const nextItems = prev.filter(item => !idsToRemove.has(item.id));
-      
+
       const itemToDelete = prev.find(i => i.id === id);
       if (itemToDelete && itemToDelete.isRawChild && itemToDelete.parentId) {
-         const parentIndex = nextItems.findIndex(i => i.id === itemToDelete.parentId);
-         if (parentIndex !== -1) {
-           const parent = nextItems[parentIndex];
-           if (parent.rawHtml) {
-             const parser = new DOMParser();
-             const doc = parser.parseFromString(parent.rawHtml, 'text/html');
-             const targetEl = doc.getElementById(itemToDelete.customId || itemToDelete.id);
-             if (targetEl) {
-               targetEl.remove(); 
-               // ✨ FIX: Strip data-id from parent raw HTML upon deletion
-               nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
-             }
-           }
-         }
+        const parentIndex = nextItems.findIndex(i => i.id === itemToDelete.parentId);
+        if (parentIndex !== -1) {
+          const parent = nextItems[parentIndex];
+          if (parent.rawHtml) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(parent.rawHtml, 'text/html');
+            const targetEl = doc.getElementById(itemToDelete.customId || itemToDelete.id);
+            if (targetEl) {
+              targetEl.remove();
+              nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
+            }
+          }
+        }
       }
       return nextItems;
     });
@@ -592,7 +604,7 @@ export default function Builder() {
       newItems.push({
         ...item,
         id: newId,
-        parentId: parentId, 
+        parentId: parentId,
         customId: isRoot ? newRootCustomId : (item.customId ? `${item.customId}_copy` : '')
       });
 
@@ -612,25 +624,25 @@ export default function Builder() {
 
     setLayoutItems(prev => {
       const nextArr = [...prev];
-      
+
       if (itemToCopy.isRawChild && itemToCopy.parentId) {
-         const parentIndex = nextArr.findIndex(i => i.id === itemToCopy.parentId);
-         if (parentIndex !== -1) {
-            const parent = nextArr[parentIndex];
-            if (parent.rawHtml) {
-              const parser = new DOMParser();
-              const doc = parser.parseFromString(parent.rawHtml, 'text/html');
-              const targetEl = doc.getElementById(itemToCopy.customId || itemToCopy.id);
-              if (targetEl) {
-                 const cloneEl = targetEl.cloneNode(true);
-                 cloneEl.id = newRootCustomId; 
-                 targetEl.parentNode.insertBefore(cloneEl, targetEl.nextSibling); 
-                 nextArr[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
-              }
+        const parentIndex = nextArr.findIndex(i => i.id === itemToCopy.parentId);
+        if (parentIndex !== -1) {
+          const parent = nextArr[parentIndex];
+          if (parent.rawHtml) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(parent.rawHtml, 'text/html');
+            const targetEl = doc.getElementById(itemToCopy.customId || itemToCopy.id);
+            if (targetEl) {
+              const cloneEl = targetEl.cloneNode(true);
+              cloneEl.id = newRootCustomId;
+              targetEl.parentNode.insertBefore(cloneEl, targetEl.nextSibling);
+              nextArr[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
             }
-         }
+          }
+        }
       }
-      
+
       nextArr.splice(lastDescendantIndex + 1, 0, ...newItems);
       return nextArr;
     });
@@ -640,11 +652,11 @@ export default function Builder() {
     setLayoutItems(prev => {
       const itemIndex = prev.findIndex(item => item.id === id);
       if (itemIndex === -1) return prev;
-      
+
       const item = prev[itemIndex];
       const siblings = prev.filter(i => i.parentId === item.parentId);
       const siblingIndex = siblings.findIndex(i => i.id === id);
-      
+
       if (direction === 'up' && siblingIndex > 0) {
         const prevSibling = siblings[siblingIndex - 1];
         const prevIndex = prev.findIndex(i => i.id === prevSibling.id);
@@ -653,7 +665,7 @@ export default function Builder() {
         nextArr[prevIndex] = item;
         return nextArr;
       }
-      
+
       if (direction === 'down' && siblingIndex < siblings.length - 1) {
         const nextSibling = siblings[siblingIndex + 1];
         const nextIndex = prev.findIndex(i => i.id === nextSibling.id);
@@ -680,14 +692,14 @@ export default function Builder() {
 
       const handleMouseOver = (e) => {
         if (!isInspectMode) return;
-        
+
         const target = e.target;
         if (!target || target === body || target.tagName === 'HTML' || target.id === 'canvas-sidebar') return;
-        e.stopPropagation(); 
-        
+        e.stopPropagation();
+
         doc.querySelectorAll('*').forEach(el => {
-          if (el?.style && el.id !== 'emtee-element-toolbelt' && !el.closest('#emtee-element-toolbelt')) { 
-            el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = ''; 
+          if (el?.style && el.id !== 'emtee-element-toolbelt' && !el.closest('#emtee-element-toolbelt')) {
+            el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = '';
           }
         });
 
@@ -701,15 +713,14 @@ export default function Builder() {
       const handleMouseOut = (e) => {
         if (!isInspectMode) return;
         const target = e.target;
-        if (target?.style) { 
-          target.style.outline = ''; target.style.outlineOffset = ''; target.style.cursor = ''; 
+        if (target?.style) {
+          target.style.outline = ''; target.style.outlineOffset = ''; target.style.cursor = '';
         }
       };
 
-      // ✨ FIX: Bullet-proof deep node click tracking using internal data-id attributes!
       const handleElementClick = (e) => {
         if (!isInspectMode) return;
-        const targetElement = e.target; 
+        const targetElement = e.target;
         if (!targetElement || targetElement === body || targetElement.tagName === 'HTML' || targetElement.id === 'canvas-sidebar') return;
 
         e.preventDefault(); e.stopPropagation();
@@ -721,47 +732,47 @@ export default function Builder() {
         let targetDataId = targetElement.getAttribute('data-id');
 
         if (!targetDataId) {
-           let targetId = targetElement.getAttribute('id');
-           if (!targetId) {
-               targetId = `e${Math.random().toString(36).substr(2, 6)}`;
-               targetElement.setAttribute('id', targetId);
-           }
-           
-           const parentNode = targetElement.closest('[data-id]');
-           if (parentNode) {
-               const pDataId = parentNode.getAttribute('data-id');
-               const parentItem = layoutItems.find(i => i.id === pDataId);
-               
-               if (parentItem) {
-                   const newId = targetId; 
-                   
-                   setLayoutItems(prev => {
-                       const next = [...prev];
-                       const pIndex = next.findIndex(i => i.id === parentItem.id);
-                       if (pIndex > -1) {
-                           const cleanOuterHTML = parentNode.outerHTML.replace(/\s*data-id="[^"]*"/g, '');
-                           next[pIndex] = { ...next[pIndex], rawHtml: cleanOuterHTML };
-                       }
-                       if (!next.find(i => i.id === newId)) {
-                           next.push({
-                               id: newId, type: targetElement.tagName.toLowerCase(),
-                               customId: targetId, parentId: parentItem.id, isRawChild: true,
-                               text: targetElement.innerHTML || '', src: targetElement.getAttribute('src') || '',
-                               href: targetElement.getAttribute('href') || '', styles: {}, tabletStyles: {}, mobileStyles: {}, 
-                               hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {},
-                               rawHtml: '', attributes: {}
-                           });
-                       }
-                       return next;
-                   });
-                   handleSelectElement(newId);
-               }
-           }
+          let targetId = targetElement.getAttribute('id');
+          if (!targetId) {
+            targetId = `e${Math.random().toString(36).substr(2, 6)}`;
+            targetElement.setAttribute('id', targetId);
+          }
+
+          const parentNode = targetElement.closest('[data-id]');
+          if (parentNode) {
+            const pDataId = parentNode.getAttribute('data-id');
+            const parentItem = layoutItems.find(i => i.id === pDataId);
+
+            if (parentItem) {
+              const newId = targetId;
+
+              setLayoutItems(prev => {
+                const next = [...prev];
+                const pIndex = next.findIndex(i => i.id === parentItem.id);
+                if (pIndex > -1) {
+                  const cleanOuterHTML = parentNode.outerHTML.replace(/\s*data-id="[^"]*"/g, '');
+                  next[pIndex] = { ...next[pIndex], rawHtml: cleanOuterHTML };
+                }
+                if (!next.find(i => i.id === newId)) {
+                  next.push({
+                    id: newId, type: targetElement.tagName.toLowerCase(),
+                    customId: targetId, parentId: parentItem.id, isRawChild: true,
+                    text: targetElement.innerHTML || '', src: targetElement.getAttribute('src') || '',
+                    href: targetElement.getAttribute('href') || '', styles: {}, tabletStyles: {}, mobileStyles: {},
+                    hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {},
+                    rawHtml: '', attributes: {}
+                  });
+                }
+                return next;
+              });
+              handleSelectElement(newId);
+            }
+          }
         } else {
-           handleSelectElement(targetDataId);
+          handleSelectElement(targetDataId);
         }
 
-        setIsInspectMode(false); 
+        setIsInspectMode(false);
       };
 
       doc.addEventListener('mouseover', handleMouseOver, true);
@@ -793,8 +804,8 @@ export default function Builder() {
 
     if (!isInspectMode) {
       doc.querySelectorAll('*').forEach(el => {
-        if (el?.style && el.id !== 'emtee-element-toolbelt' && !el.closest('#emtee-element-toolbelt')) { 
-          el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = ''; 
+        if (el?.style && el.id !== 'emtee-element-toolbelt' && !el.closest('#emtee-element-toolbelt')) {
+          el.style.outline = ''; el.style.outlineOffset = ''; el.style.cursor = '';
         }
       });
       body?.classList?.remove('inspect-mode');
@@ -806,7 +817,7 @@ export default function Builder() {
     if (oldControls) oldControls.remove();
     const oldOutline = doc.getElementById('emtee-selection-outline');
     if (oldOutline) oldOutline.remove();
-    
+
     doc.querySelectorAll('.selected-element').forEach(el => el?.classList?.remove('selected-element'));
 
     if (selectedElementId) {
@@ -814,8 +825,7 @@ export default function Builder() {
       let targetNode = null;
 
       if (item) {
-         // ✨ FIX: Outlining relies strictly on native ID selectors now
-         targetNode = doc.getElementById(item.customId || item.id);
+        targetNode = doc.getElementById(item.customId || item.id);
       }
 
       if (targetNode) {
@@ -824,23 +834,23 @@ export default function Builder() {
         const rect = targetNode.getBoundingClientRect();
         const scrollX = iframe.contentWindow.scrollX || doc.documentElement.scrollLeft;
         const scrollY = iframe.contentWindow.scrollY || doc.documentElement.scrollTop;
-        
+
         let toolbeltTop = rect.top + scrollY - 32;
         if (toolbeltTop < scrollY) {
-           toolbeltTop = rect.top + scrollY + 6; 
+          toolbeltTop = rect.top + scrollY + 6;
         }
 
         const toolbelt = doc.createElement('div');
         toolbelt.id = 'emtee-element-toolbelt';
         Object.assign(toolbelt.style, {
-          position: 'absolute', 
-          top: `${toolbeltTop}px`, 
+          position: 'absolute',
+          top: `${toolbeltTop}px`,
           left: `${Math.max(0, rect.left + scrollX)}px`,
           zIndex: '99999', display: 'flex', alignItems: 'center', gap: '5px',
           backgroundColor: '#0f172a', padding: '4px 6px', borderRadius: '8px',
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)', border: '1px solid #334155'
         });
-        
+
         toolbelt.innerHTML = `
           <span style="font-family: monospace; font-size: 9px; color: #818cf8; font-weight: bold; padding: 0 4px; text-transform: uppercase;">${item?.type || 'tag'}</span>
           <button id="toolbelt-dup-action" style="background: #1e293b; border: 1px solid #334155; color: #818cf8; padding: 4px; border-radius: 5px; cursor: pointer; display: flex; align-items: center; justify-content: center; width: 22px; height: 24px;" title="Duplicate Element">
@@ -851,7 +861,7 @@ export default function Builder() {
           </button>
         `;
         doc.body.appendChild(toolbelt);
-        
+
         toolbelt.querySelector('#toolbelt-dup-action').onclick = (e) => { e.stopPropagation(); handleDuplicateItem(selectedElementId); };
         toolbelt.querySelector('#toolbelt-del-action').onclick = (e) => { e.stopPropagation(); handleRemoveItem(selectedElementId); };
 
@@ -865,7 +875,7 @@ export default function Builder() {
         doc.body.appendChild(outline);
       }
     }
-  }, [selectedElementId, currentCompiledCode, layoutItems, selectionNonce, isInspectMode]); 
+  }, [selectedElementId, currentCompiledCode, layoutItems, selectionNonce, isInspectMode]);
 
   const handleApplyStyleChanges = (id, updates) => {
     const safeParentId = updates.parentId === '' ? null : updates.parentId;
@@ -873,19 +883,19 @@ export default function Builder() {
 
     setLayoutItems(prev => {
       const oldItem = prev.find(item => item.id === id);
-      
+
       let nextItems = prev.map(item => {
         if (item.id === id) {
-          return { 
-            ...item, 
-            text: updates.text, 
-            styles: updates.styles, 
+          return {
+            ...item,
+            text: updates.text,
+            styles: updates.styles,
             tabletStyles: updates.tabletStyles,
             mobileStyles: updates.mobileStyles,
-            hoverStyles: updates.hoverStyles,               // ✨ NEW: Map Hover updates
-            tabletHoverStyles: updates.tabletHoverStyles,   // ✨ NEW: Map Hover updates
-            mobileHoverStyles: updates.mobileHoverStyles,   // ✨ NEW: Map Hover updates
-            customId: updates.customId, 
+            hoverStyles: updates.hoverStyles,
+            tabletHoverStyles: updates.tabletHoverStyles,
+            mobileHoverStyles: updates.mobileHoverStyles,
+            customId: updates.customId,
             parentId: safeParentId,
             src: updates.src !== undefined ? updates.src : item.src,
             href: updates.href !== undefined ? updates.href : item.href,
@@ -903,15 +913,14 @@ export default function Builder() {
           if (parent.rawHtml) {
             const parser = new DOMParser();
             const doc = parser.parseFromString(parent.rawHtml, 'text/html');
-            const targetEl = doc.getElementById(oldItem.customId || oldItem.id); 
-            
+            const targetEl = doc.getElementById(oldItem.customId || oldItem.id);
+
             if (targetEl) {
               if (updates.text !== oldItem.text) targetEl.innerHTML = updates.text;
               if (updates.customId !== oldItem.customId) targetEl.id = updates.customId;
               if (updates.src !== undefined && updates.src !== oldItem.src) targetEl.setAttribute('src', updates.src);
               if (updates.href !== undefined && updates.href !== oldItem.href) targetEl.setAttribute('href', updates.href);
 
-              // ✨ FIX: Strip data-id from the raw HTML to keep export clean
               nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
             }
           }
@@ -933,29 +942,29 @@ export default function Builder() {
   return (
     <div className="min-h-screen bg-slate-950 flex">
       <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} layoutItems={layoutItems} onAddItem={handleAddItem} onOpenWorkspaces={() => setIsWorkspacesModalOpen(true)} />
-      
+
       <div className="flex flex-col flex-1 transition-all duration-300" style={{ paddingLeft: isCollapsed ? '4.5rem' : '18rem' }}>
-        <Navbar 
-          isCollapsed={isCollapsed} userProfile={userProfile} 
-          activeWorkspaceName={activeWorkspaceName} onSaveWorkspace={handleSaveWorkspaceExplicitly} 
+        <Navbar
+          isCollapsed={isCollapsed} userProfile={userProfile}
+          activeWorkspaceName={activeWorkspaceName} onSaveWorkspace={handleSaveWorkspaceExplicitly}
           onOpenExport={() => setIsExportModalOpen(true)}
           onGoHome={() => navigate('/user/home')}
-          onOpenAccount={() => setIsAccountModalOpen(true)} 
+          onOpenAccount={() => setIsAccountModalOpen(true)}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
           onOpenWorkspaces={() => setIsWorkspacesModalOpen(true)}
           onOpenWorkspaceSettings={() => setWorkspaceSettingsTarget(workspaces.find(w => w.id === activeWorkspaceId))}
         />
-        
+
         <main className="p-4 mt-16 max-w-[1600px] w-full mx-auto flex flex-col flex-1 relative">
-          <CanvasContainer 
-            code={currentCompiledCode} 
-            iframeRef={iframeRef} 
-            layoutItems={layoutItems} 
-            selectedElementId={selectedElementId} 
-            onSelectElementId={handleSelectElement} 
-            onRemoveItem={handleRemoveItem} 
+          <CanvasContainer
+            code={currentCompiledCode}
+            iframeRef={iframeRef}
+            layoutItems={layoutItems}
+            selectedElementId={selectedElementId}
+            onSelectElementId={handleSelectElement}
+            onRemoveItem={handleRemoveItem}
             onDuplicateItem={handleDuplicateItem}
-            onApplyCodeChanges={handleApplyCodeChanges} 
+            onApplyCodeChanges={handleApplyCodeChanges}
           />
           <InspectorPanel isInspectMode={isInspectMode} setIsInspectMode={setIsInspectMode} selectedElementId={selectedElementId} layoutItems={layoutItems} onApplyChanges={handleApplyStyleChanges} isMinimized={isInspectorMinimized} setIsMinimized={setIsInspectorMinimized} onMoveItem={handleMoveItem} />
         </main>
@@ -963,25 +972,25 @@ export default function Builder() {
 
       <AccountModal isOpen={isAccountModalOpen} onClose={() => setIsAccountModalOpen(false)} userProfile={userProfile} />
       <SettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} autoSave={autoSave} onToggleAutoSave={() => setAutoSave(prev => !prev)} />
-      
-      <WorkspacesModal 
-        isOpen={isWorkspacesModalOpen} onClose={() => setIsWorkspacesModalOpen(false)} 
+
+      <WorkspacesModal
+        isOpen={isWorkspacesModalOpen} onClose={() => setIsWorkspacesModalOpen(false)}
         workspaces={workspaces} activeWorkspaceId={activeWorkspaceId}
         userRole={userRole}
-        currentUserUid={auth.currentUser?.uid} currentUsername={userProfile?.username || 'user'} 
+        currentUserUid={auth.currentUser?.uid} currentUsername={userProfile?.username || 'user'}
         onCreateWorkspace={handleCreateWorkspace} onSelectWorkspace={setActiveWorkspaceId} onDeleteWorkspace={handleDeleteWorkspace}
         onOpenWorkspaceSettings={setWorkspaceSettingsTarget} onDuplicateWorkspace={handleDuplicateWorkspace}
       />
 
-      <WorkspaceSettingsModal 
-        isOpen={!!workspaceSettingsTarget} 
-        onClose={() => setWorkspaceSettingsTarget(null)} 
-        workspace={workspaceSettingsTarget} 
-        onSave={handleSaveWorkspaceSettings} 
-        userRole={userRole} 
-        workspaces={workspaces} 
-        onDuplicateWorkspace={handleDuplicateWorkspace} 
-        onDeleteWorkspace={handleDeleteWorkspace} 
+      <WorkspaceSettingsModal
+        isOpen={!!workspaceSettingsTarget}
+        onClose={() => setWorkspaceSettingsTarget(null)}
+        workspace={workspaceSettingsTarget}
+        onSave={handleSaveWorkspaceSettings}
+        userRole={userRole}
+        workspaces={workspaces}
+        onDuplicateWorkspace={handleDuplicateWorkspace}
+        onDeleteWorkspace={handleDeleteWorkspace}
       />
       <ExportModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} code={generateCanvasHtml(layoutItems, true)} projectName={activeWorkspaceName} userRole={userRole} />
     </div>
