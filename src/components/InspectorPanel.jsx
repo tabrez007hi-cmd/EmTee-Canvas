@@ -137,6 +137,7 @@ export default function InspectorPanel({
     lists: false, ui: false, svg: false
   });
 
+  // ✨ FIX: Auto-collapse all accordions when a NEW element is selected
   useEffect(() => {
     setAccState({
       structure: false, attributes: false, content: false, 
@@ -184,10 +185,18 @@ export default function InspectorPanel({
       setPendingRawHtml(activeItemData.rawHtml || '');
       setPendingAttributes(activeItemData.attributes || {});
       
-      if (activeItemData.rawHtml && !activeItemData.isRawChild) {
-         setEditorMode('code');
-         setCodeTab('html');
-      }
+      // ✨ FIX: Smart Tab Router Prevents Panel Freezes!
+      setEditorMode(prev => {
+          if (activeItemData.rawHtml && !activeItemData.isRawChild) return 'code';
+          if (activeItemData.isRawChild && prev === 'code') return 'css-props';
+          return prev;
+      });
+      setCodeTab(prev => {
+          if (activeItemData.rawHtml && !activeItemData.isRawChild) return 'html';
+          if (activeItemData.isRawChild && prev === 'html') return 'css';
+          return prev;
+      });
+
     } else {
       setPendingText(''); setPendingCustomId(''); setPendingParentId(null);
       setPendingSrc(''); setPendingHref('');
@@ -738,7 +747,7 @@ export default function InspectorPanel({
                       <div className="flex items-center gap-2 mb-2 bg-black/20 border border-white/5 p-1 rounded-lg shrink-0">
                         <div className="flex-1 flex gap-1">
                           {['desktop', 'tablet', 'mobile'].map(bp => (
-                            <button key={bp} onClick={() => setBreakpoint(bp)} className={`flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer ${breakpoint === bp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{bp.charAt(0)}{bp.charAt(1)}{bp.charAt(2)}</button>
+                            <button key={bp} onClick={() => setBreakpoint(bp)} className={`flex-1 py-1 text-[9px] font-bold uppercase tracking-wider rounded transition-all cursor-pointer ${breakpoint === bp ? 'bg-white/10 text-white' : 'text-slate-500 hover:text-white'}`}>{bp.charAt(0)}</button>
                           ))}
                         </div>
                         <button onClick={() => setPseudoState(p => p === 'normal' ? 'hover' : 'normal')} className={`px-2 py-1 rounded text-[9px] font-bold uppercase tracking-wider transition-all cursor-pointer ${pseudoState === 'hover' ? 'bg-pink-500 text-white' : 'bg-transparent text-slate-500 hover:text-white'}`}>

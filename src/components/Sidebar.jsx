@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAddItem, onOpenWorkspaces }) {
   const [isContainersOpen, setIsContainersOpen] = useState(false);
@@ -8,7 +8,6 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
   const [isListsOpen, setIsListsOpen] = useState(false); 
   const [isLegacyOpen, setIsLegacyOpen] = useState(false); 
 
-  // ✨ NEW: Search State
   const [tagSearch, setTagSearch] = useState('');
 
   const containerElements = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'summary', 'dialog', 'figure', 'figcaption', 'hgroup'];
@@ -24,31 +23,28 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
   };
 
   const renderSection = (title, icon, isOpen, toggleOpen, elements, themeClass, iconColor) => {
-    // Filter tags by search term
     const filteredElements = elements.filter(tag => tag.toLowerCase().includes(tagSearch.toLowerCase()));
+    if (filteredElements.length === 0) return null; 
     
-    if (filteredElements.length === 0) return null; // Hide section if no matches
-    
-    // Auto-open if searching
     const actuallyOpen = tagSearch ? true : isOpen;
 
     return (
       <div className="mb-2">
-        {/* ✨ FIX: Completely removed the background bleed on the button in collapsed mode */}
+        {/* ✨ FIX: Perfect centering when collapsed without background bleeding */}
         <button 
           onClick={() => handleSectionClick(actuallyOpen, toggleOpen)} 
           className={`w-full flex items-center ${isCollapsed ? 'justify-center p-0 mb-3' : 'justify-between px-3 py-3'} rounded-xl transition-all duration-200 cursor-pointer ${actuallyOpen && !isCollapsed ? 'bg-slate-800/80 shadow-inner border border-slate-700/50' : 'bg-transparent hover:bg-slate-800/40 border border-transparent'}`}
         >
-          <div className="flex items-center gap-3.5">
-            <div className={`flex items-center justify-center ${isCollapsed ? 'w-12 h-12 rounded-2xl' : 'w-8 h-8 rounded-lg'} ${actuallyOpen ? themeClass.iconBg : 'bg-slate-800/50 text-slate-400'} ${isCollapsed && !actuallyOpen ? 'hover:bg-slate-800 hover:text-white' : ''} transition-colors`}>
-              <i className={`bi ${icon} ${isCollapsed ? 'text-lg' : 'text-[15px]'} ${actuallyOpen ? iconColor : ''}`}></i>
-            </div>
-            {!isCollapsed && <span className={`text-sm font-bold tracking-wide ${actuallyOpen ? 'text-white' : 'text-slate-300'}`}>{title}</span>}
+          <div className={`flex items-center justify-center ${isCollapsed ? 'w-10 h-10 rounded-xl bg-slate-800/50 text-slate-400 hover:bg-slate-800 hover:text-white border border-transparent hover:border-slate-700' : `w-8 h-8 rounded-lg ${actuallyOpen ? themeClass.iconBg : 'bg-slate-800/50 text-slate-400'}`} transition-colors`}>
+            <i className={`bi ${icon} text-[15px] ${actuallyOpen && !isCollapsed ? iconColor : ''}`}></i>
           </div>
           {!isCollapsed && (
-            <div className={`w-5 h-5 rounded-full flex items-center justify-center transition-transform duration-300 ${actuallyOpen ? 'rotate-180 bg-slate-700 text-white' : 'text-slate-500'}`}>
-              <i className="bi bi-chevron-down text-[10px]"></i>
-            </div>
+            <>
+              <span className={`ml-3.5 text-sm font-bold tracking-wide ${actuallyOpen ? 'text-white' : 'text-slate-300'}`}>{title}</span>
+              <div className={`ml-auto w-5 h-5 rounded-full flex items-center justify-center transition-transform duration-300 ${actuallyOpen ? 'rotate-180 bg-slate-700 text-white' : 'text-slate-500'}`}>
+                <i className="bi bi-chevron-down text-[10px]"></i>
+              </div>
+            </>
           )}
         </button>
         
@@ -90,7 +86,7 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
 
       <nav className="flex-1 py-5 overflow-y-auto overflow-x-hidden custom-scrollbar">
         
-        {/* ✨ NEW: Search Bar Injection */}
+        {/* ✨ FIX: Unified Search Bar that elegantly collapses into an icon */}
         <div className="px-3 mb-4">
           {!isCollapsed ? (
             <div className="relative">
@@ -107,8 +103,8 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, layoutItems, onAd
               )}
             </div>
           ) : (
-            <button onClick={() => setIsCollapsed(false)} className="w-12 h-12 mx-auto bg-slate-950 border border-slate-800 rounded-2xl flex items-center justify-center text-slate-500 hover:text-indigo-400 hover:border-indigo-500/50 transition-colors cursor-pointer">
-              <i className="bi bi-search"></i>
+            <button onClick={() => setIsCollapsed(false)} className="w-10 h-10 mx-auto bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-center text-slate-500 hover:text-indigo-400 hover:border-indigo-500/50 transition-colors cursor-pointer shadow-sm">
+              <i className="bi bi-search text-sm"></i>
             </button>
           )}
         </div>

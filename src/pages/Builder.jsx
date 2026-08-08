@@ -98,10 +98,9 @@ export default function Builder() {
         if (item.id === 'global_custom_css') return;
 
         if (item.isRawChild) {
-          const el = doc.getElementById(item.customId);
-          if (el) item.rawHtml = el.outerHTML;
+          const el = doc.getElementById(item.customId || item.id);
+          if (el) item.rawHtml = el.outerHTML.replace(/\s*data-id="[^"]*"/g, ''); // ✨ Clean export HTML
         } else {
-          // ✨ FIX: We now scan elements purely by their clean HTML ID!
           const el = doc.getElementById(item.customId || item.id);
           if (el) {
             if (item.type === 'img' && el.getAttribute('src')) item.src = el.getAttribute('src');
@@ -455,13 +454,12 @@ export default function Builder() {
     const newItems = [];
     const parentId = `e${Math.random().toString(36).substr(2, 6)}`;
 
-    // ✨ FIX: Separated Lists from Tables to prevent Flexbox breaking Table structure!
     const isContainer = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup'].includes(type);
     const isInput = ['input', 'textarea', 'select', 'datalist', 'output', 'meter', 'progress'].includes(type);
     const isMedia = ['img', 'video', 'audio', 'iframe', 'canvas', 'svg', 'object', 'embed'].includes(type);
-    const isList = ['ul', 'ol', 'dl'].includes(type); // Pure lists
-    const isTable = ['table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup'].includes(type); // Table structure
-    const isTableCell = ['td', 'th'].includes(type); // Table cells
+    const isList = ['ul', 'ol', 'dl'].includes(type); 
+    const isTable = ['table', 'thead', 'tbody', 'tfoot', 'tr', 'colgroup'].includes(type); 
+    const isTableCell = ['td', 'th'].includes(type); 
     const isListItem = ['li', 'dt', 'dd'].includes(type);
     const isLink = type === 'a';
     const isBtn = type === 'button';
@@ -478,7 +476,6 @@ export default function Builder() {
 
     if (isContainer) defaultStyles = { minHeight: '50px', width: '100%', padding: '20px', backgroundColor: '#f8fafc', display: 'flex', flexDirection: 'column', gap: '10px', boxSizing: 'border-box' };
     
-    // ✨ FIX: Distinct styling allowing tables to exist naturally without Flex overrides
     if (isTable) {
         defaultStyles = { width: '100%', borderCollapse: 'collapse', marginBottom: '1rem' };
         if (type === 'table') defaultStyles.backgroundColor = '#ffffff';
@@ -556,10 +553,11 @@ export default function Builder() {
            if (parent.rawHtml) {
              const parser = new DOMParser();
              const doc = parser.parseFromString(parent.rawHtml, 'text/html');
-             const targetEl = doc.getElementById(itemToDelete.customId);
+             const targetEl = doc.getElementById(itemToDelete.customId || itemToDelete.id);
              if (targetEl) {
                targetEl.remove(); 
-               nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML };
+               // ✨ FIX: Strip data-id from parent raw HTML upon deletion
+               nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
              }
            }
          }
@@ -622,12 +620,12 @@ export default function Builder() {
             if (parent.rawHtml) {
               const parser = new DOMParser();
               const doc = parser.parseFromString(parent.rawHtml, 'text/html');
-              const targetEl = doc.getElementById(itemToCopy.customId);
+              const targetEl = doc.getElementById(itemToCopy.customId || itemToCopy.id);
               if (targetEl) {
                  const cloneEl = targetEl.cloneNode(true);
                  cloneEl.id = newRootCustomId; 
                  targetEl.parentNode.insertBefore(cloneEl, targetEl.nextSibling); 
-                 nextArr[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML };
+                 nextArr[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
               }
             }
          }
@@ -708,6 +706,7 @@ export default function Builder() {
         }
       };
 
+      // ✨ FIX: Bullet-proof deep node click tracking using internal data-id attributes!
       const handleElementClick = (e) => {
         if (!isInspectMode) return;
         const targetElement = e.target; 
@@ -719,43 +718,47 @@ export default function Builder() {
           targetElement.style.outline = ''; targetElement.style.outlineOffset = ''; targetElement.style.cursor = '';
         }
 
-        // ✨ FIX: Robust ID mapping completely reliant on Native HTML IDs
-        let targetId = targetElement.getAttribute('id');
-        let matchedItem = layoutItems.find(i => (i.customId || i.id) === targetId);
+        let targetDataId = targetElement.getAttribute('data-id');
 
-        if (!matchedItem) {
-           const newId = `e${Math.random().toString(36).substr(2, 6)}`;
-           targetElement.setAttribute('id', newId);
-           
-           let parentNode = targetElement.parentElement;
-           let parentItem = null;
-           
-           while (parentNode && parentNode.tagName !== 'BODY') {
-               const pid = parentNode.getAttribute('id');
-               parentItem = layoutItems.find(i => (i.customId || i.id) === pid);
-               if (parentItem) break;
-               parentNode = parentNode.parentElement;
+        if (!targetDataId) {
+           let targetId = targetElement.getAttribute('id');
+           if (!targetId) {
+               targetId = `e${Math.random().toString(36).substr(2, 6)}`;
+               targetElement.setAttribute('id', targetId);
            }
-
-           if (parentItem) {
-               setLayoutItems(prev => {
-                   const next = [...prev];
-                   const pIndex = next.findIndex(i => i.id === parentItem.id);
-                   if (pIndex > -1) {
-                       next[pIndex] = { ...next[pIndex], rawHtml: parentNode.outerHTML };
-                   }
-                   next.push({
-                       id: newId, type: targetElement.tagName.toLowerCase(),
-                       customId: '', parentId: parentItem.id, isRawChild: true,
-                       text: targetElement.innerHTML || '', src: targetElement.getAttribute('src') || '',
-                       href: targetElement.getAttribute('href') || '', styles: {}, tabletStyles: {}, mobileStyles: {}, rawHtml: '', attributes: {}
+           
+           const parentNode = targetElement.closest('[data-id]');
+           if (parentNode) {
+               const pDataId = parentNode.getAttribute('data-id');
+               const parentItem = layoutItems.find(i => i.id === pDataId);
+               
+               if (parentItem) {
+                   const newId = targetId; 
+                   
+                   setLayoutItems(prev => {
+                       const next = [...prev];
+                       const pIndex = next.findIndex(i => i.id === parentItem.id);
+                       if (pIndex > -1) {
+                           const cleanOuterHTML = parentNode.outerHTML.replace(/\s*data-id="[^"]*"/g, '');
+                           next[pIndex] = { ...next[pIndex], rawHtml: cleanOuterHTML };
+                       }
+                       if (!next.find(i => i.id === newId)) {
+                           next.push({
+                               id: newId, type: targetElement.tagName.toLowerCase(),
+                               customId: targetId, parentId: parentItem.id, isRawChild: true,
+                               text: targetElement.innerHTML || '', src: targetElement.getAttribute('src') || '',
+                               href: targetElement.getAttribute('href') || '', styles: {}, tabletStyles: {}, mobileStyles: {}, 
+                               hoverStyles: {}, tabletHoverStyles: {}, mobileHoverStyles: {},
+                               rawHtml: '', attributes: {}
+                           });
+                       }
+                       return next;
                    });
-                   return next;
-               });
-               handleSelectElement(newId);
+                   handleSelectElement(newId);
+               }
            }
         } else {
-           handleSelectElement(matchedItem.id);
+           handleSelectElement(targetDataId);
         }
 
         setIsInspectMode(false); 
@@ -908,7 +911,8 @@ export default function Builder() {
               if (updates.src !== undefined && updates.src !== oldItem.src) targetEl.setAttribute('src', updates.src);
               if (updates.href !== undefined && updates.href !== oldItem.href) targetEl.setAttribute('href', updates.href);
 
-              nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML };
+              // ✨ FIX: Strip data-id from the raw HTML to keep export clean
+              nextItems[parentIndex] = { ...parent, rawHtml: doc.body.innerHTML.replace(/\s*data-id="[^"]*"/g, '') };
             }
           }
         }
@@ -950,6 +954,7 @@ export default function Builder() {
             selectedElementId={selectedElementId} 
             onSelectElementId={handleSelectElement} 
             onRemoveItem={handleRemoveItem} 
+            onDuplicateItem={handleDuplicateItem}
             onApplyCodeChanges={handleApplyCodeChanges} 
           />
           <InspectorPanel isInspectMode={isInspectMode} setIsInspectMode={setIsInspectMode} selectedElementId={selectedElementId} layoutItems={layoutItems} onApplyChanges={handleApplyStyleChanges} isMinimized={isInspectorMinimized} setIsMinimized={setIsInspectorMinimized} onMoveItem={handleMoveItem} />

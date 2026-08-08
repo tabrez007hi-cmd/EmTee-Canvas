@@ -67,6 +67,11 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         injectedHtml = injectedHtml.replace(/(<[a-zA-Z0-9\-]+)([^>]*>)/, `$1 ${idAttr}$2`);
       }
       
+      // ✨ FIX: Safe injection of data-id for builder tracking ONLY. Stripped on export!
+      if (!isExport && !injectedHtml.includes(`data-id="${item.id}"`)) {
+         injectedHtml = injectedHtml.replace(/(<[a-zA-Z0-9\-]+)([^>]*>)/, `$1 data-id="${item.id}"$2`);
+      }
+      
       return injectedHtml.split('\n').map(line => indent + line).join('\n');
     }
     
@@ -84,10 +89,11 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
     const tag = item.type;
     
     // ✨ FIX: Apply soft empty placeholders to Tables and Cells too!
-    const isContainerBlock = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup', 'ul', 'ol', 'form', 'table', 'td', 'th', 'tr', 'tbody'].includes(tag);
-    const builderHelperAttr = (!isExport && isContainerBlock) ? ` data-empty-container="${tag}"` : '';
+    const isContainerBlock = ['div', 'section', 'article', 'header', 'aside', 'footer', 'nav', 'main', 'details', 'dialog', 'fieldset', 'figure', 'hgroup', 'ul', 'ol', 'form', 'table', 'td', 'th', 'tr', 'tbody'];
+    const builderHelperAttr = (!isExport && isContainerBlock.includes(tag)) ? ` data-empty-container="${tag}"` : '';
+    const trackingAttr = isExport ? '' : ` data-id="${item.id}"`;
 
-    const attrs = `${idAttr} ${dynamicAttributesStr} class="transition-all relative"${builderHelperAttr}`.trim();
+    const attrs = `${idAttr}${trackingAttr} ${dynamicAttributesStr} class="transition-all relative"${builderHelperAttr}`.trim();
     
     if (tag === 'img') return `${indent}<img ${attrs} src="${item.src || 'https://images.unsplash.com/photo-1707343843437-caacff5cfa74?w=500&q=80'}" alt="Image"/>`;
     if (['input', 'br', 'hr', 'source', 'track', 'wbr', 'area', 'embed', 'col'].includes(tag)) {
@@ -116,7 +122,7 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         <p style="font-size: 14px; line-height: 1.6;">Your workspace is a completely blank HTML document. Drag an element from the sidebar to begin structuring your DOM Tree from scratch.</p>
     </div>`;
 
-  // ✨ FIX: Stripped borders & backgrounds. Just pure text injection.
+  // ✨ FIX: Stripped borders & backgrounds. Just pure text injection that vanishes on export!
   const builderCss = isExport ? '' : `
         * { transition: outline 0.1s ease-in-out; }
         .selected-element { outline: 2px solid #6366f1 !important; outline-offset: -2px; }
@@ -126,21 +132,31 @@ export function generateCanvasHtml(layoutItems, isExport = false) {
         ::-webkit-scrollbar-thumb:hover { background: #4f46e5; }
         
         [data-empty-container]:empty {
-            min-height: 24px !important;
-            min-width: 24px !important;
+            min-height: 30px;
+            min-width: 30px;
+        }
+        
+        table[data-empty-container]:empty, 
+        tbody[data-empty-container]:empty, 
+        thead[data-empty-container]:empty, 
+        tr[data-empty-container]:empty, 
+        ul[data-empty-container]:empty, 
+        ol[data-empty-container]:empty {
+            display: block;
         }
         
         [data-empty-container]:empty::after {
             content: '<' attr(data-empty-container) '>';
             color: #94a3b8;
             font-family: monospace;
-            font-size: 11px;
+            font-size: 12px;
             font-weight: bold;
             pointer-events: none;
-            display: block;
+            display: inline-block;
+            width: 100%;
             text-align: center;
             opacity: 0.6;
-            padding: 8px;
+            padding: 10px 0;
         }
   `;
 
